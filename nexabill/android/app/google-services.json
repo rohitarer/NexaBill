@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "119339044673",
+    "firebase_url": "https://nexabill-517ef-default-rtdb.firebaseio.com",
+    "project_id": "nexabill-517ef",
+    "storage_bucket": "nexabill-517ef.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:119339044673:android:ef61f2ccf62d874a0e1bc0",
+        "android_client_info": {
+          "package_name": "com.example.nexabill"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "119339044673-eofhga7vrnffopk37s7q9ns8p4ktt8t3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEHyVp4mhZckW7Juu3mhfrdd4sbG15oE0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "119339044673-eofhga7vrnffopk37s7q9ns8p4ktt8t3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
