@@ -209,16 +209,13 @@ class _BillContainerState extends State<BillContainer> {
         ),
         const SizedBox(height: 5),
         Text(
-          "${BillData.customerName}",
+          BillData.customerName,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        Text(
-          "${BillData.customerMobile}",
-          style: const TextStyle(fontSize: 15),
-        ),
+        Text(BillData.customerMobile, style: const TextStyle(fontSize: 15)),
         const SizedBox(height: 5), // ✅ Adding space before cashier name
         Text(
-          "${BillData.cashier}", // ✅ Adding Cashier Name
+          BillData.cashier, // ✅ Adding Cashier Name
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
         ),
       ],

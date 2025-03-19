@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class BillData {
   // Mart Information
   static const String martName = "DMart";

@@ -1,7 +1,7 @@
 // lib/data/state_data.dart
 
 class StateData {
-  static const List<String> states = [
+  static const List<String> stateList = [
     "Andhra Pradesh",
     "Arunachal Pradesh",
     "Assam",
