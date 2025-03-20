@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:nexabill/ui/screens/home_screen.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// **Profile Fetching Provider with Retry Logic**
 final profileFutureProvider = FutureProvider<Map<String, dynamic>>((ref) async {
@@ -52,9 +56,13 @@ final selectedStateProvider = StateProvider<String?>(
 class ProfileNotifier extends StateNotifier<ProfileState> {
   ProfileNotifier() : super(ProfileState.initial());
 
-  /// **Load Profile Data from Firestore**
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseDatabase _database = FirebaseDatabase.instance;
+
+  /// **📌 Load Profile Data from Firebase Realtime Database & Firestore**
   Future<void> loadProfile() async {
-    User? user = FirebaseAuth.instance.currentUser;
+    User? user = _auth.currentUser;
     if (user == null) {
       state = ProfileState.error("User not logged in");
       return;
@@ -63,19 +71,26 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     try {
       state = state.copyWith(isLoading: true);
 
+      // ✅ Fetch user data from Firestore
       DocumentSnapshot userDoc =
-          await FirebaseFirestore.instance
-              .collection("users")
-              .doc(user.uid)
-              .get();
+          await _firestore.collection("users").doc(user.uid).get();
+      Map<String, dynamic>? userData = userDoc.data() as Map<String, dynamic>?;
 
-      if (!userDoc.exists) {
+      if (userData == null) {
         state = ProfileState.error("User profile not found");
         return;
       }
 
-      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+      // ✅ Fetch Base64 Image String from Firestore
+      String? base64Image = userData["profileImageUrl"];
 
+      // ✅ Decode the Base64 string into a File
+      File? decodedImage;
+      if (base64Image != null && base64Image.isNotEmpty) {
+        decodedImage = await decodeBase64ToImage(base64Image);
+      }
+
+      // ✅ Update ProfileState with loaded data
       state = ProfileState.loaded(
         fullName: userData["fullName"] ?? "",
         phoneNumber: userData["phoneNumber"] ?? "",
@@ -85,13 +100,92 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
             userData["dob"] != null ? DateTime.tryParse(userData["dob"]) : null,
         address: userData["address"] ?? "",
         city: userData["city"] ?? "",
-        selectedState: userData["state"],
+        selectedState: userData["state"] ?? "",
         pin: userData["pin"] ?? "",
-        isProfileComplete:
-            userData["isProfileComplete"] ?? false, // ✅ Use existing field
+        profileImage: decodedImage, // ✅ Set decoded image
+        profileImageUrl: base64Image ?? "", // ✅ Store Base64 Image String
+        isProfileComplete: userData["isProfileComplete"] ?? false,
       );
+
+      debugPrint("✅ Profile image loaded successfully");
     } catch (e) {
       state = ProfileState.error("Error loading profile: ${e.toString()}");
+    }
+  }
+
+  /// **📌 Pick Image and Convert to Base64**
+  Future<void> pickAndUploadImage() async {
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+    );
+    if (pickedFile == null) return;
+
+    File imageFile = File(pickedFile.path);
+    state = state.copyWith(profileImage: imageFile);
+
+    await uploadProfileImageToRealtimeDatabase(imageFile);
+  }
+
+  /// **📌 Convert Image to Base64 and Upload to Firebase Realtime Database & Firestore**
+  Future<void> uploadProfileImageToRealtimeDatabase(File imageFile) async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // ✅ Convert Image to Base64
+      List<int> imageBytes = await imageFile.readAsBytes();
+      String base64String = base64Encode(imageBytes);
+
+      // ✅ Save Base64 Image to Realtime Database
+      DatabaseReference userRef = _database
+          .ref()
+          .child("users")
+          .child(user.uid);
+      await userRef.update({
+        "profileImageBase64": base64String, // 🔥 Store Image as Base64 String
+      });
+
+      // ✅ Save the SAME Base64 String in Firestore
+      await _firestore.collection("users").doc(user.uid).update({
+        "profileImageUrl": base64String, // 🔥 Store Base64 String in Firestore
+      });
+
+      // ✅ Update state
+      state = state.copyWith(profileImageUrl: base64String);
+
+      debugPrint(
+        "✅ Profile image saved successfully in Realtime Database & Firestore",
+      );
+    } catch (e) {
+      debugPrint(
+        "❌ Error uploading profile image to Realtime Database: ${e.toString()}",
+      );
+    }
+  }
+
+  /// **📌 Convert Base64 String to File**
+  Future<File?> decodeBase64ToImage(String base64String) async {
+    try {
+      if (base64String.isEmpty) return null;
+
+      // ✅ Fix Incorrect Padding by ensuring Base64 length is a multiple of 4
+      while (base64String.length % 4 != 0) {
+        base64String += '=';
+      }
+
+      // ✅ Decode Image Bytes
+      List<int> imageBytes = base64Decode(base64String);
+
+      // ✅ Save to Temporary Directory
+      final tempDir = await getTemporaryDirectory();
+      final imageFile = File('${tempDir.path}/profile_image.png');
+      await imageFile.writeAsBytes(imageBytes);
+
+      debugPrint("✅ Profile image decoded successfully");
+      return imageFile;
+    } catch (e) {
+      debugPrint("❌ Error decoding Base64 image: ${e.toString()}");
+      return null;
     }
   }
 
@@ -109,52 +203,10 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       selectedState:
           fieldName == "selectedState" ? fieldValue : state.selectedState,
       pin: fieldName == "pin" ? fieldValue : state.pin,
-      isProfileComplete: state.isProfileComplete, // ✅ Retain existing value
       profileImage: state.profileImage, // ✅ Retain existing profile image
+      isProfileComplete: state.isProfileComplete, // ✅ Retain existing value
     );
   }
-
-  // Future<void> saveProfile() async {
-  //   User? user = FirebaseAuth.instance.currentUser;
-  //   if (user == null) {
-  //     state = ProfileState.error("User not logged in");
-  //     return;
-  //   }
-
-  //   try {
-  //     state = state.copyWith(isLoading: true);
-
-  //     // ✅ Fetch Latest Data Before Saving
-  //     final updatedProfileData = {
-  //       "fullName": state.fullName.trim(),
-  //       "phoneNumber": state.phoneNumber.trim(),
-  //       "gender": state.gender,
-  //       "dob": state.dob?.toIso8601String() ?? "",
-  //       "address": state.address.trim(),
-  //       "city": state.city.trim(),
-  //       "state": state.selectedState ?? "",
-  //       "pin": state.pin.trim(),
-  //       "isProfileCompleted": true, // ✅ Ensure profile completion flag is set
-  //     };
-
-  //     // ✅ Save Data to Firestore with Merge
-  //     await FirebaseFirestore.instance
-  //         .collection("users")
-  //         .doc(user.uid)
-  //         .set(
-  //           updatedProfileData,
-  //           SetOptions(
-  //             merge: true,
-  //           ), // ✅ Merge prevents overwriting existing data
-  //         );
-
-  //     state = state.copyWith(isLoading: false);
-
-  //     debugPrint("✅ Profile saved successfully!");
-  //   } catch (e) {
-  //     state = ProfileState.error("Error saving profile: ${e.toString()}");
-  //   }
-  // }
 
   Future<void> saveProfile(BuildContext context, WidgetRef ref) async {
     User? user = FirebaseAuth.instance.currentUser;
@@ -176,7 +228,12 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         "city": state.city.trim(),
         "state": state.selectedState?.trim() ?? "",
         "pin": state.pin.trim(),
+        // "profileImageUrl": state.profileImageUrl, // ✅ Save Image URL
       };
+      // ✅ Ensure profileImageUrl is not empty before saving
+      if (state.profileImageUrl.isNotEmpty) {
+        updatedProfileData["profileImageUrl"] = state.profileImageUrl;
+      }
 
       // ✅ Ensure all fields are properly filled to mark as complete
       bool isComplete = updatedProfileData.values.every(
@@ -194,6 +251,13 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
             updatedProfileData,
             SetOptions(merge: true), // ✅ Prevents overwriting existing data
           );
+
+      // ✅ Save Data to Realtime Database
+      await _database
+          .ref()
+          .child("users")
+          .child(user.uid)
+          .update(updatedProfileData);
 
       // ✅ Update State with Saved Data
       state = state.copyWith(
@@ -217,120 +281,25 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     }
   }
 
-  /// **Pick Image**
   Future<void> pickImage() async {
     final pickedFile = await ImagePicker().pickImage(
       source: ImageSource.gallery,
     );
+
     if (pickedFile != null) {
-      state = state.copyWith(profileImage: File(pickedFile.path));
+      File imageFile = File(pickedFile.path);
+
+      // ✅ Update UI instantly with selected image
+      state = state.copyWith(profileImage: imageFile);
+
+      // ✅ Upload to Firebase Realtime Database as Base64
+      await uploadProfileImageToRealtimeDatabase(imageFile);
     }
   }
 }
 
-// class ProfileNotifier extends StateNotifier<ProfileState> {
-//   ProfileNotifier() : super(ProfileState.initial());
-
-//   /// **Load Profile Data from Firestore**
-//   Future<void> loadProfile() async {
-//     User? user = FirebaseAuth.instance.currentUser;
-//     if (user == null) {
-//       state = ProfileState.error("User not logged in");
-//       return;
-//     }
-
-//     try {
-//       state = state.copyWith(isLoading: true);
-
-//       DocumentSnapshot userDoc =
-//           await FirebaseFirestore.instance
-//               .collection("users")
-//               .doc(user.uid)
-//               .get();
-
-//       if (!userDoc.exists) {
-//         state = ProfileState.error("User profile not found");
-//         return;
-//       }
-
-//       Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-
-//       state = ProfileState.loaded(
-//         fullName: userData["fullName"] ?? "",
-//         phoneNumber: userData["phoneNumber"] ?? "",
-//         email: user.email ?? "",
-//         gender: userData["gender"] ?? "Male",
-//         dob:
-//             userData["dob"] != null ? DateTime.tryParse(userData["dob"]) : null,
-//         address: userData["address"] ?? "",
-//         city: userData["city"] ?? "",
-//         selectedState: userData["state"],
-//         pin: userData["pin"] ?? "",
-//       );
-//     } catch (e) {
-//       state = ProfileState.error("Error loading profile: ${e.toString()}");
-//     }
-//   }
-
-//   /// **Update a Specific Field Without Resetting Others**
-//   void updateProfileField(String fieldName, dynamic fieldValue) {
-//     state = state.copyWith(
-//       isLoading: false, // Ensure UI does not get stuck
-//       errorMessage: state.errorMessage, // Keep existing error messages
-//       fullName: fieldName == "fullName" ? fieldValue : state.fullName,
-//       phoneNumber: fieldName == "phoneNumber" ? fieldValue : state.phoneNumber,
-//       gender: fieldName == "gender" ? fieldValue : state.gender,
-//       dob: fieldName == "dob" ? fieldValue : state.dob,
-//       address: fieldName == "address" ? fieldValue : state.address,
-//       city: fieldName == "city" ? fieldValue : state.city,
-//       selectedState:
-//           fieldName == "selectedState" ? fieldValue : state.selectedState,
-//       pin: fieldName == "pin" ? fieldValue : state.pin,
-//       profileImage: state.profileImage, // Retain the existing profile image
-//     );
-//   }
-
-//   /// **Save Profile Updates**
-//   Future<void> saveProfile() async {
-//     User? user = FirebaseAuth.instance.currentUser;
-//     if (user == null) {
-//       state = ProfileState.error("User not logged in");
-//       return;
-//     }
-
-//     try {
-//       state = state.copyWith(isLoading: true);
-
-//       await FirebaseFirestore.instance.collection("users").doc(user.uid).set({
-//         "fullName": state.fullName,
-//         "phoneNumber": state.phoneNumber,
-//         "gender": state.gender,
-//         "dob": state.dob?.toIso8601String() ?? "",
-//         "address": state.address,
-//         "city": state.city,
-//         "state": state.selectedState,
-//         "pin": state.pin,
-//         "isProfileCompleted": true,
-//       }, SetOptions(merge: true));
-
-//       state = state.copyWith(isLoading: false);
-//     } catch (e) {
-//       state = ProfileState.error("Error saving profile: ${e.toString()}");
-//     }
-//   }
-
-//   /// **Pick Image**
-//   Future<void> pickImage() async {
-//     final pickedFile = await ImagePicker().pickImage(
-//       source: ImageSource.gallery,
-//     );
-//     if (pickedFile != null) {
-//       state = state.copyWith(profileImage: File(pickedFile.path));
-//     }
-//   }
-// }
-
 /// **Profile State Class**
+
 class ProfileState {
   final bool isLoading;
   final String? errorMessage;
@@ -343,9 +312,9 @@ class ProfileState {
   final String city;
   final String selectedState;
   final String pin;
-  final File? profileImage;
-  final bool
-  isProfileComplete; // ✅ Only keep this field for profile completion tracking
+  final File? profileImage; // ✅ Local image file (for selection)
+  final String profileImageUrl; // ✅ Firebase Storage image URL
+  final bool isProfileComplete; // ✅ Profile completion status
 
   ProfileState({
     required this.isLoading,
@@ -360,7 +329,8 @@ class ProfileState {
     required this.selectedState,
     required this.pin,
     this.profileImage,
-    required this.isProfileComplete, // ✅ Ensure only this tracks profile completion
+    required this.profileImageUrl,
+    required this.isProfileComplete,
   });
 
   /// **✅ Convert ProfileState to JSON for Firestore**
@@ -375,8 +345,8 @@ class ProfileState {
       "city": city,
       "selectedState": selectedState,
       "pin": pin,
-      "isProfileComplete":
-          isProfileComplete, // ✅ Only use this field for profile tracking
+      "profileImageUrl": profileImageUrl, // ✅ Include Image URL
+      "isProfileComplete": isProfileComplete,
     };
   }
 
@@ -392,11 +362,11 @@ class ProfileState {
       dob: json["dob"] != null ? DateTime.tryParse(json["dob"]) : null,
       address: json["address"] ?? "",
       city: json["city"] ?? "",
-      selectedState: json["selectedState"] ?? "", // ✅ Ensure no null issues
+      selectedState: json["selectedState"] ?? "",
       pin: json["pin"] ?? "",
       profileImage: null, // ✅ Profile image is stored locally, not in Firestore
-      isProfileComplete:
-          json["isProfileComplete"] ?? false, // ✅ Only keep this field
+      profileImageUrl: json["profileImageUrl"] ?? "", // ✅ Fetch Image URL
+      isProfileComplete: json["isProfileComplete"] ?? false,
     );
   }
 
@@ -412,9 +382,10 @@ class ProfileState {
       dob: null,
       address: "",
       city: "",
-      selectedState: "", // ✅ Default to empty string
+      selectedState: "",
       pin: "",
       profileImage: null,
+      profileImageUrl: "", // ✅ No image initially
       isProfileComplete: false, // ✅ Default to false
     );
   }
@@ -431,8 +402,8 @@ class ProfileState {
     required String selectedState,
     required String pin,
     File? profileImage,
-    bool isProfileComplete =
-        false, // ✅ Use a default value instead of force unwrapping
+    String profileImageUrl = "", // ✅ Default to empty URL
+    bool isProfileComplete = false, // ✅ Default value
   }) {
     return ProfileState(
       isLoading: false,
@@ -447,7 +418,8 @@ class ProfileState {
       selectedState: selectedState,
       pin: pin,
       profileImage: profileImage,
-      isProfileComplete: isProfileComplete, // ✅ Ensure existing value persists
+      profileImageUrl: profileImageUrl, // ✅ Ensure URL persists
+      isProfileComplete: isProfileComplete,
     );
   }
 
@@ -466,6 +438,7 @@ class ProfileState {
       selectedState: "",
       pin: "",
       profileImage: null,
+      profileImageUrl: "",
       isProfileComplete: false, // ✅ Ensure a default value is set
     );
   }
@@ -484,7 +457,8 @@ class ProfileState {
     String? selectedState,
     String? pin,
     File? profileImage,
-    bool? isProfileComplete, // ✅ Ensure copyWith supports this field
+    String? profileImageUrl, // ✅ Support image URL updates
+    bool? isProfileComplete,
   }) {
     return ProfileState(
       isLoading: isLoading ?? this.isLoading,
@@ -499,303 +473,9 @@ class ProfileState {
       selectedState: selectedState ?? this.selectedState,
       pin: pin ?? this.pin,
       profileImage: profileImage ?? this.profileImage,
-      isProfileComplete:
-          isProfileComplete ?? this.isProfileComplete, // ✅ Ensure persistence
+      profileImageUrl:
+          profileImageUrl ?? this.profileImageUrl, // ✅ Persist Image URL
+      isProfileComplete: isProfileComplete ?? this.isProfileComplete,
     );
   }
 }
-
-// import 'dart:async';
-// import 'dart:io';
-// import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:image_picker/image_picker.dart';
-
-// /// **Profile Fetching Provider with Retry Logic**
-// // final profileFutureProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-// //   User? user = FirebaseAuth.instance.currentUser;
-// //   if (user == null) {
-// //     throw Exception("User not logged in");
-// //   }
-
-// //   const int maxRetries = 5;
-// //   int attempt = 0;
-
-// //   while (attempt < maxRetries) {
-// //     DocumentSnapshot userDoc = await FirebaseFirestore.instance
-// //         .collection("users")
-// //         .doc(user.uid)
-// //         .get();
-
-// //     if (userDoc.exists) {
-// //       return userDoc.data() as Map<String, dynamic>;
-// //     }
-
-// //     attempt++;
-// //     await Future.delayed(const Duration(seconds: 2)); // Retry delay
-// //   }
-
-// //   throw Exception("User profile not found");
-// // });
-// final profileFutureProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-//   User? user = FirebaseAuth.instance.currentUser;
-//   if (user == null) {
-//     throw Exception("User not logged in");
-//   }
-
-//   const int maxRetries = 5;
-//   int attempt = 0;
-
-//   while (attempt < maxRetries) {
-//     DocumentSnapshot userDoc =
-//         await FirebaseFirestore.instance
-//             .collection("users")
-//             .doc(user.uid)
-//             .get();
-
-//     if (userDoc.exists) {
-//       return userDoc.data() as Map<String, dynamic>;
-//     }
-
-//     attempt++;
-//     await Future.delayed(const Duration(seconds: 1));
-//   }
-
-//   throw Exception("User profile not found after retries");
-// });
-
-// /// **StateNotifierProvider for Profile Editing**
-// final profileNotifierProvider =
-//     StateNotifierProvider<ProfileNotifier, ProfileState>((ref) {
-//       return ProfileNotifier();
-//     });
-
-// /// **StateProviders for Gender & State Selection**
-// final selectedGenderProvider = StateProvider<String>((ref) => "Male");
-// final selectedStateProvider = StateProvider<String?>(
-//   (ref) => null,
-// ); // Default is null (Hint text)
-
-// /// **Profile Notifier**
-// class ProfileNotifier extends StateNotifier<ProfileState> {
-//   ProfileNotifier() : super(ProfileState.initial());
-
-//   /// **Load Profile Data from Firestore**
-//   Future<void> loadProfile() async {
-//     User? user = FirebaseAuth.instance.currentUser;
-//     if (user == null) {
-//       state = ProfileState.error("User not logged in");
-//       return;
-//     }
-
-//     try {
-//       state = state.copyWith(isLoading: true);
-
-//       DocumentSnapshot userDoc =
-//           await FirebaseFirestore.instance
-//               .collection("users")
-//               .doc(user.uid)
-//               .get();
-
-//       if (!userDoc.exists) {
-//         state = ProfileState.error("User profile not found");
-//         return;
-//       }
-
-//       Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-
-//       state = ProfileState.loaded(
-//         fullName: userData["fullName"] ?? "",
-//         phoneNumber: userData["phoneNumber"] ?? "",
-//         email: user.email ?? "",
-//         gender: userData["gender"] ?? "Male",
-//         dob:
-//             userData["dob"] != null ? DateTime.tryParse(userData["dob"]) : null,
-//         address: userData["address"] ?? "",
-//         city: userData["city"] ?? "",
-//         selectedState: userData["state"],
-//         pin: userData["pin"] ?? "",
-//       );
-//     } catch (e) {
-//       state = ProfileState.error("Error loading profile: ${e.toString()}");
-//     }
-//   }
-
-//   /// **Save Profile Updates**
-//   Future<void> saveProfile({
-//     required String fullName,
-//     required String phoneNumber,
-//     required String gender,
-//     required DateTime? dob,
-//     required String address,
-//     required String city,
-//     required String selectedState,
-//     required String pin,
-//   }) async {
-//     User? user = FirebaseAuth.instance.currentUser;
-//     if (user == null) {
-//       state = ProfileState.error("User not logged in");
-//       return;
-//     }
-
-//     try {
-//       state = state.copyWith(isLoading: true);
-
-//       await FirebaseFirestore.instance.collection("users").doc(user.uid).set({
-//         "fullName": fullName,
-//         "phoneNumber": phoneNumber,
-//         "gender": gender,
-//         "dob": dob?.toIso8601String() ?? "",
-//         "address": address,
-//         "city": city,
-//         "state": selectedState,
-//         "pin": pin,
-//         "isProfileCompleted": true,
-//       }, SetOptions(merge: true));
-
-//       state = ProfileState.loaded(
-//         fullName: fullName,
-//         phoneNumber: phoneNumber,
-//         email: user.email ?? "",
-//         gender: gender,
-//         dob: dob,
-//         address: address,
-//         city: city,
-//         selectedState: selectedState,
-//         pin: pin,
-//       );
-//     } catch (e) {
-//       state = ProfileState.error("Error saving profile: ${e.toString()}");
-//     }
-//   }
-
-//   /// **Pick Image**
-//   Future<void> pickImage() async {
-//     final pickedFile = await ImagePicker().pickImage(
-//       source: ImageSource.gallery,
-//     );
-//     if (pickedFile != null) {
-//       state = state.copyWith(profileImage: File(pickedFile.path));
-//     }
-//   }
-// }
-
-// /// **Profile State Class**
-// class ProfileState {
-//   final bool isLoading;
-//   final String? errorMessage;
-//   final String fullName;
-//   final String phoneNumber;
-//   final String email;
-//   final String gender;
-//   final DateTime? dob;
-//   final String address;
-//   final String city;
-//   final String? selectedState;
-//   final String pin;
-//   final File? profileImage;
-
-//   ProfileState({
-//     required this.isLoading,
-//     this.errorMessage,
-//     required this.fullName,
-//     required this.phoneNumber,
-//     required this.email,
-//     required this.gender,
-//     this.dob,
-//     required this.address,
-//     required this.city,
-//     required this.selectedState,
-//     required this.pin,
-//     this.profileImage,
-//   });
-
-//   /// **Initial State**
-//   factory ProfileState.initial() {
-//     return ProfileState(
-//       isLoading: false,
-//       fullName: "",
-//       phoneNumber: "",
-//       email: "",
-//       gender: "Male",
-//       address: "",
-//       city: "",
-//       selectedState: null, // No default state, show hint text
-//       pin: "",
-//     );
-//   }
-
-//   /// **Loaded State**
-//   factory ProfileState.loaded({
-//     required String fullName,
-//     required String phoneNumber,
-//     required String email,
-//     required String gender,
-//     DateTime? dob,
-//     required String address,
-//     required String city,
-//     required String? selectedState,
-//     required String pin,
-//   }) {
-//     return ProfileState(
-//       isLoading: false,
-//       fullName: fullName,
-//       phoneNumber: phoneNumber,
-//       email: email,
-//       gender: gender,
-//       dob: dob,
-//       address: address,
-//       city: city,
-//       selectedState: selectedState,
-//       pin: pin,
-//     );
-//   }
-
-//   /// **Error State**
-//   factory ProfileState.error(String message) {
-//     return ProfileState(
-//       isLoading: false,
-//       errorMessage: message,
-//       fullName: "",
-//       phoneNumber: "",
-//       email: "",
-//       gender: "Male",
-//       address: "",
-//       city: "",
-//       selectedState: null, // No default state
-//       pin: "",
-//     );
-//   }
-
-//   /// **Copy State for Updates**
-//   ProfileState copyWith({
-//     bool? isLoading,
-//     String? errorMessage,
-//     String? fullName,
-//     String? phoneNumber,
-//     String? email,
-//     String? gender,
-//     DateTime? dob,
-//     String? address,
-//     String? city,
-//     String? selectedState,
-//     String? pin,
-//     File? profileImage,
-//   }) {
-//     return ProfileState(
-//       isLoading: isLoading ?? this.isLoading,
-//       errorMessage: errorMessage ?? this.errorMessage,
-//       fullName: fullName ?? this.fullName,
-//       phoneNumber: phoneNumber ?? this.phoneNumber,
-//       email: email ?? this.email,
-//       gender: gender ?? this.gender,
-//       dob: dob ?? this.dob,
-//       address: address ?? this.address,
-//       city: city ?? this.city,
-//       selectedState: selectedState ?? this.selectedState,
-//       pin: pin ?? this.pin,
-//       profileImage: profileImage ?? this.profileImage,
-//     );
-//   }
-// }

@@ -116,6 +116,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 hintText: "Enter your full name",
                 controller: nameController,
                 prefixIcon: Icons.person,
+                labelColor:
+                    isDarkMode
+                        ? AppTheme.whiteColor
+                        : AppTheme.textColor, // ✅ Label color based on theme
               ),
 
               // ✅ Phone Number Field
@@ -125,6 +129,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 controller: phoneController,
                 keyboardType: TextInputType.phone,
                 prefixIcon: Icons.phone,
+                labelColor:
+                    isDarkMode
+                        ? AppTheme.whiteColor
+                        : AppTheme.textColor, // ✅ Label color based on theme
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return "Phone number is required";
@@ -143,6 +151,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
                 prefixIcon: Icons.email,
+                labelColor:
+                    isDarkMode
+                        ? AppTheme.whiteColor
+                        : AppTheme.textColor, // ✅ Label color based on theme
               ),
 
               // ✅ Password Field
@@ -154,6 +166,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 prefixIcon: Icons.lock,
                 suffixIcon:
                     isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                labelColor:
+                    isDarkMode
+                        ? AppTheme.whiteColor
+                        : AppTheme.textColor, // ✅ Label color based on theme
                 onSuffixIconTap: () {
                   setState(() => isPasswordVisible = !isPasswordVisible);
                 },
@@ -170,6 +186,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     isConfirmPasswordVisible
                         ? Icons.visibility
                         : Icons.visibility_off,
+                labelColor:
+                    isDarkMode
+                        ? AppTheme.whiteColor
+                        : AppTheme.textColor, // ✅ Label color based on theme
                 onSuffixIconTap: () {
                   setState(
                     () => isConfirmPasswordVisible = !isConfirmPasswordVisible,
