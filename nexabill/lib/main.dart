@@ -21,7 +21,7 @@ class NexaBillApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userState = ref.watch(authProvider);
-    final profileState = ref.watch(profileFutureProvider);
+    // final profileState = ref.watch(profileFutureProvider);
 
     return MaterialApp(
       theme: AppTheme.lightTheme,
@@ -33,6 +33,9 @@ class NexaBillApp extends ConsumerWidget {
           if (user == null) {
             return const SignInScreen(); // ✅ No User → Show Sign-In
           }
+
+          // ✅ Now fetch profile only if user is logged in
+          final profileState = ref.watch(profileFutureProvider);
 
           return profileState.when(
             data: (profileData) {
