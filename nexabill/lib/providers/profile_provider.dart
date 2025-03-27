@@ -10,7 +10,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:nexabill/providers/home_provider.dart';
-import 'package:nexabill/ui/screens/home_screen.dart';
+import 'package:nexabill/services/role_routes.dart';
+import 'package:nexabill/ui/screens/customerHome_screen.dart';
 import 'package:path_provider/path_provider.dart';
 
 final profileFutureProvider = FutureProvider<Map<String, dynamic>>((ref) async {
@@ -91,6 +92,9 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         profileImage: decodedImage,
         profileImageUrl: base64Image ?? "",
         isProfileComplete: userData["isProfileComplete"] ?? false,
+        role: userData["role"] ?? "customer",
+        mart: userData["mart"] ?? "",
+        counterNumber: userData["counterNumber"] ?? "",
       );
 
       debugPrint("✅ Profile data and gender restored successfully.");
@@ -121,35 +125,6 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     return compressedBytes ?? await imageFile.readAsBytes();
   }
 
-  // Future<void> uploadProfileImage(String base64String) async {
-  //   try {
-  //     User? user = FirebaseAuth.instance.currentUser;
-  //     if (user == null) return;
-
-  //     DatabaseReference userRef = _database
-  //         .ref()
-  //         .child("users")
-  //         .child(user.uid);
-  //     await userRef.update({"profileImageBase64": base64String});
-
-  //     await _firestore.collection("users").doc(user.uid).update({
-  //       "profileImageUrl": base64String,
-  //     });
-
-  //     File? decodedImage = await decodeBase64ToImage(base64String);
-  //     state = state.copyWith(
-  //       profileImageUrl: base64String,
-  //       profileImage: decodedImage,
-  //     );
-
-  //     ref.invalidate(profileFutureProvider);
-  //     ref.invalidate(profileNotifierProvider);
-
-  //     debugPrint("✅ Profile image updated and state refreshed!");
-  //   } catch (e) {
-  //     debugPrint("❌ Error updating profile image: $e");
-  //   }
-  // }
   Future<void> uploadProfileImage(String base64String, WidgetRef ref) async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
@@ -236,62 +211,87 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       isProfileComplete: state.isProfileComplete,
       isLoading: false,
       errorMessage: state.errorMessage,
+      role: fieldName == "role" ? fieldValue : state.role,
+      mart: fieldName == "mart" ? fieldValue : state.mart,
+      counterNumber:
+          fieldName == "counterNumber" ? fieldValue : state.counterNumber,
     );
   }
 
-  //   Future<void> saveProfile(BuildContext context, WidgetRef ref) async {
-  //     User? user = FirebaseAuth.instance.currentUser;
-  //     if (user == null) {
-  //       state = ProfileState.error("User not logged in");
-  //       return;
-  //     }
+  // Future<void> saveProfile(BuildContext context, WidgetRef ref) async {
+  //   User? user = FirebaseAuth.instance.currentUser;
+  //   if (user == null) {
+  //     state = ProfileState.error("User not logged in");
+  //     return;
+  //   }
 
-  //     try {
-  //       state = state.copyWith(isLoading: true);
+  //   try {
+  //     state = state.copyWith(isLoading: true);
 
-  //       Map<String, dynamic> updatedProfileData = {
-  //         "fullName": state.fullName.trim(),
-  //         "phoneNumber": state.phoneNumber.trim(),
-  //         "gender": state.gender,
-  //         "dob": state.dob?.toIso8601String() ?? "",
-  //         "address": state.address.trim(),
-  //         "city": state.city.trim(),
-  //         "state": state.selectedState.trim(),
-  //         "pin": state.pin.trim(),
-  //         "profileImageUrl": state.profileImageUrl,
-  //         "isProfileComplete": true, // bool allowed because of dynamic type
-  //       };
+  //     // ✅ Build updated profile map
+  //     final Map<String, dynamic> updatedProfileData = {
+  //       "fullName": state.fullName.trim(),
+  //       "phoneNumber": state.phoneNumber.trim(),
+  //       "gender": state.gender,
+  //       "dob": state.dob?.toIso8601String() ?? "",
+  //       "address": state.address.trim(),
+  //       "city": state.city.trim(),
+  //       "state": state.selectedState.trim(),
+  //       "pin": state.pin.trim(),
+  //       "profileImageUrl": state.profileImageUrl,
+  //       "role": state.role,
+  //       "mart": state.mart,
+  //       "counterNumber": state.counterNumber,
+  //     };
 
-  //       await _firestore
-  //           .collection("users")
-  //           .doc(user.uid)
-  //           .set(updatedProfileData, SetOptions(merge: true));
+  //     // ✅ Mark profile complete if all fields are filled
+  //     final isComplete = updatedProfileData.values.every(
+  //       (value) => value != null && value.toString().trim().isNotEmpty,
+  //     );
+  //     updatedProfileData["isProfileComplete"] = isComplete;
 
-  //       await _database
-  //           .ref()
-  //           .child("users")
-  //           .child(user.uid)
-  //           .update(updatedProfileData);
+  //     // ✅ Save to Firestore
+  //     await FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(user.uid)
+  //         .set(updatedProfileData, SetOptions(merge: true));
 
-  //       state = state.copyWith(
-  //         isLoading: false,
-  //         isProfileComplete: updatedProfileData["isProfileComplete"] ?? false,
+  //     // ✅ Save to Realtime Database
+  //     await FirebaseDatabase.instance
+  //         .ref()
+  //         .child("users")
+  //         .child(user.uid)
+  //         .update(updatedProfileData);
+
+  //     // ✅ Invalidate image provider to refresh HomeScreen
+  //     ref.invalidate(profileImageProvider);
+
+  //     // ✅ Give Firestore time to sync
+  //     await Future.delayed(const Duration(milliseconds: 500));
+
+  //     // ✅ Update local state
+  //     state = state.copyWith(isLoading: false, isProfileComplete: isComplete);
+
+  //     debugPrint("✅ Profile saved successfully: $updatedProfileData");
+
+  //     // ✅ Navigate to HomeScreen
+  //     if (context.mounted) {
+  //       Navigator.pushReplacement(
+  //         context,
+  //         MaterialPageRoute(
+  //           builder:
+  //               (context) => RoleRoutes.getHomeScreen(
+  //                 state.role,
+  //                 state.isProfileComplete,
+  //               ),
+  //         ),
   //       );
-
-  //       await loadProfile(ref);
-
-  //       if (context.mounted) {
-  //         Navigator.pushReplacement(
-  //           context,
-  //           MaterialPageRoute(builder: (context) => const HomeScreen()),
-  //         );
-  //       }
-  //     } catch (e) {
-  //       state = ProfileState.error("Error saving profile: \${e.toString()}");
   //     }
+  //   } catch (e) {
+  //     state = ProfileState.error("Error saving profile: ${e.toString()}");
   //   }
   // }
-
+  // 🔄 Modified saveProfile method with role-based profile completeness check
   Future<void> saveProfile(BuildContext context, WidgetRef ref) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -313,10 +313,29 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         "state": state.selectedState.trim(),
         "pin": state.pin.trim(),
         "profileImageUrl": state.profileImageUrl,
+        "role": state.role,
+        "mart": state.mart,
+        "counterNumber": state.counterNumber,
       };
 
-      // ✅ Mark profile complete if all fields are filled
-      final isComplete = updatedProfileData.values.every(
+      // ✅ Conditional validation for profile completeness based on role
+      final isCashier = state.role.toLowerCase() == "cashier";
+      final requiredFields = [
+        updatedProfileData["fullName"],
+        updatedProfileData["phoneNumber"],
+        updatedProfileData["gender"],
+        updatedProfileData["dob"],
+        updatedProfileData["address"],
+        updatedProfileData["city"],
+        updatedProfileData["state"],
+        updatedProfileData["pin"],
+        updatedProfileData["profileImageUrl"],
+        updatedProfileData["role"],
+        if (isCashier) updatedProfileData["mart"],
+        if (isCashier) updatedProfileData["counterNumber"],
+      ];
+
+      final isComplete = requiredFields.every(
         (value) => value != null && value.toString().trim().isNotEmpty,
       );
       updatedProfileData["isProfileComplete"] = isComplete;
@@ -343,17 +362,23 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       // ✅ Update local state
       state = state.copyWith(isLoading: false, isProfileComplete: isComplete);
 
-      debugPrint("✅ Profile saved successfully: $updatedProfileData");
+      debugPrint("✅ Profile saved successfully: \$updatedProfileData");
 
       // ✅ Navigate to HomeScreen
       if (context.mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(
+            builder:
+                (context) => RoleRoutes.getHomeScreen(
+                  state.role,
+                  state.isProfileComplete,
+                ),
+          ),
         );
       }
     } catch (e) {
-      state = ProfileState.error("Error saving profile: ${e.toString()}");
+      state = ProfileState.error("Error saving profile: \${e.toString()}");
     }
   }
 }
@@ -372,7 +397,11 @@ class ProfileState {
   final String pin;
   final File? profileImage;
   final String profileImageUrl;
+
   final bool isProfileComplete;
+  final String role;
+  final String mart;
+  final String counterNumber;
 
   ProfileState({
     required this.isLoading,
@@ -389,6 +418,9 @@ class ProfileState {
     this.profileImage,
     required this.profileImageUrl,
     required this.isProfileComplete,
+    required this.role,
+    required this.mart,
+    required this.counterNumber,
   });
 
   factory ProfileState.initial() {
@@ -407,6 +439,9 @@ class ProfileState {
       profileImage: null,
       profileImageUrl: "",
       isProfileComplete: false,
+      role: "customer",
+      mart: "",
+      counterNumber: "",
     );
   }
 
@@ -423,6 +458,9 @@ class ProfileState {
     File? profileImage,
     String profileImageUrl = "",
     bool isProfileComplete = false,
+    required String role,
+    required String mart,
+    required String counterNumber,
   }) {
     return ProfileState(
       isLoading: false,
@@ -439,6 +477,9 @@ class ProfileState {
       profileImage: profileImage,
       profileImageUrl: profileImageUrl,
       isProfileComplete: isProfileComplete,
+      role: role,
+      mart: mart,
+      counterNumber: counterNumber,
     );
   }
 
@@ -458,6 +499,9 @@ class ProfileState {
       profileImage: null,
       profileImageUrl: "",
       isProfileComplete: false,
+      role: "customer",
+      mart: "",
+      counterNumber: "",
     );
   }
 
@@ -476,6 +520,9 @@ class ProfileState {
     File? profileImage,
     String? profileImageUrl,
     bool? isProfileComplete,
+    String? role,
+    String? mart,
+    String? counterNumber,
   }) {
     return ProfileState(
       isLoading: isLoading ?? this.isLoading,
@@ -492,6 +539,9 @@ class ProfileState {
       profileImage: profileImage ?? this.profileImage,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       isProfileComplete: isProfileComplete ?? this.isProfileComplete,
+      role: role ?? this.role,
+      mart: mart ?? this.mart,
+      counterNumber: counterNumber ?? this.counterNumber,
     );
   }
 }

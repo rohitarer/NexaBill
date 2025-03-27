@@ -15,6 +15,7 @@ class CustomTextField extends StatelessWidget {
   final bool enabled;
   final int maxLines;
   final int minLines;
+  final int? maxLength;
   final Color? textColor;
   final Color? hintColor;
   final Color? labelColor;
@@ -22,7 +23,9 @@ class CustomTextField extends StatelessWidget {
   final Color? suffixIconColor;
   final Color? fillColor;
   final Function(String)? onChanged;
-  final VoidCallback? onTap; // ✅ Added onTap for Date Picker Support
+  final VoidCallback? onTap;
+  final TextAlign textAlign;
+  final TextStyle? textStyle;
 
   const CustomTextField({
     super.key,
@@ -40,6 +43,7 @@ class CustomTextField extends StatelessWidget {
     this.enabled = true,
     this.maxLines = 1,
     this.minLines = 1,
+    this.maxLength,
     this.textColor,
     this.hintColor,
     this.labelColor,
@@ -47,7 +51,9 @@ class CustomTextField extends StatelessWidget {
     this.suffixIconColor,
     this.fillColor,
     this.onChanged,
-    this.onTap, // ✅ Added this to handle Date Picker taps
+    this.onTap,
+    this.textAlign = TextAlign.start,
+    this.textStyle,
   });
 
   @override
@@ -68,7 +74,7 @@ class CustomTextField extends StatelessWidget {
             ),
           ),
         SizedBox(
-          width: double.infinity, // ✅ Ensures it takes full width
+          width: double.infinity,
           child: TextFormField(
             controller: controller,
             keyboardType: keyboardType,
@@ -79,10 +85,13 @@ class CustomTextField extends StatelessWidget {
             enabled: enabled,
             maxLines: maxLines,
             minLines: minLines,
-            style: TextStyle(color: textColor ?? Colors.black),
+            maxLength: maxLength,
             onChanged: onChanged,
-            onTap: onTap, // ✅ Now supports Date Picker taps
+            onTap: onTap,
+            textAlign: textAlign,
+            style: textStyle ?? TextStyle(color: textColor ?? Colors.black),
             decoration: InputDecoration(
+              counterText: '',
               filled: true,
               fillColor: fillColor ?? Colors.white,
               hintText: hintText,
@@ -91,18 +100,23 @@ class CustomTextField extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(color: Colors.black12),
               ),
-              prefixIcon: prefixIcon != null
-                  ? Icon(prefixIcon, color: prefixIconColor ?? Colors.black54)
-                  : null,
-              suffixIcon: suffixIcon != null
-                  ? GestureDetector(
-                      onTap: onSuffixIconTap,
-                      child: Icon(
-                        suffixIcon,
-                        color: suffixIconColor ?? Colors.black54,
-                      ),
-                    )
-                  : null,
+              prefixIcon:
+                  prefixIcon != null
+                      ? Icon(
+                        prefixIcon,
+                        color: prefixIconColor ?? Colors.black54,
+                      )
+                      : null,
+              suffixIcon:
+                  suffixIcon != null
+                      ? GestureDetector(
+                        onTap: onSuffixIconTap,
+                        child: Icon(
+                          suffixIcon,
+                          color: suffixIconColor ?? Colors.black54,
+                        ),
+                      )
+                      : null,
             ),
           ),
         ),
@@ -112,29 +126,32 @@ class CustomTextField extends StatelessWidget {
   }
 }
 
+// import 'package:flutter/material.dart';
+
 // class CustomTextField extends StatelessWidget {
-//   final String? label; // Optional Label
-//   final String? hintText; // Optional Hint
+//   final String? label;
+//   final String? hintText;
 //   final TextEditingController controller;
 //   final TextInputType keyboardType;
 //   final bool isPassword;
-//   final IconData? prefixIcon; // Leading Icon (Optional)
-//   final IconData? suffixIcon; // Trailing Icon (Optional)
-//   final VoidCallback? onSuffixIconTap; // Action for Trailing Icon (Optional)
-//   final String? Function(String?)? validator; // Validation Function (Optional)
+//   final IconData? prefixIcon;
+//   final IconData? suffixIcon;
+//   final VoidCallback? onSuffixIconTap;
+//   final String? Function(String?)? validator;
 //   final bool autoFocus;
 //   final bool readOnly;
-//   final bool enabled; // ✅ New: Enables/Disables Input Field
+//   final bool enabled;
 //   final int maxLines;
 //   final int minLines;
-
-//   // NEW Parameters
-//   final Color? textColor; // Input Text Color
-//   final Color? hintColor; // Hint Text Color
-//   final Color? labelColor; // Label Text Color
-//   final Color? prefixIconColor; // Prefix Icon Color
-//   final Color? suffixIconColor; // Suffix Icon Color
-//   final Color? fillColor; // Background Color for Input Field
+//   final int? maxLength;
+//   final Color? textColor;
+//   final Color? hintColor;
+//   final Color? labelColor;
+//   final Color? prefixIconColor;
+//   final Color? suffixIconColor;
+//   final Color? fillColor;
+//   final Function(String)? onChanged;
+//   final VoidCallback? onTap;
 
 //   const CustomTextField({
 //     super.key,
@@ -149,15 +166,18 @@ class CustomTextField extends StatelessWidget {
 //     this.validator,
 //     this.autoFocus = false,
 //     this.readOnly = false,
-//     this.enabled = true, // ✅ Default: Input field is enabled
+//     this.enabled = true,
 //     this.maxLines = 1,
 //     this.minLines = 1,
+//     this.maxLength,
 //     this.textColor,
 //     this.hintColor,
 //     this.labelColor,
 //     this.prefixIconColor,
 //     this.suffixIconColor,
 //     this.fillColor,
+//     this.onChanged,
+//     this.onTap,
 //   });
 
 //   @override
@@ -177,40 +197,50 @@ class CustomTextField extends StatelessWidget {
 //               ),
 //             ),
 //           ),
-//         TextFormField(
-//           controller: controller,
-//           keyboardType: keyboardType,
-//           obscureText: isPassword,
-//           validator: validator,
-//           autofocus: autoFocus,
-//           readOnly: readOnly,
-//           enabled: enabled, // ✅ Controls input field state
-//           maxLines: maxLines,
-//           minLines: minLines,
-//           style: TextStyle(color: textColor ?? Colors.black),
-//           decoration: InputDecoration(
-//             filled: true,
-//             fillColor: fillColor ?? Colors.white,
-//             hintText: hintText,
-//             hintStyle: TextStyle(color: hintColor ?? Colors.grey),
-//             border: OutlineInputBorder(
-//               borderRadius: BorderRadius.circular(10),
-//               borderSide: const BorderSide(color: Colors.black12),
+//         SizedBox(
+//           width: double.infinity,
+//           child: TextFormField(
+//             controller: controller,
+//             keyboardType: keyboardType,
+//             obscureText: isPassword,
+//             validator: validator,
+//             autofocus: autoFocus,
+//             readOnly: readOnly,
+//             enabled: enabled,
+//             maxLines: maxLines,
+//             minLines: minLines,
+//             maxLength: maxLength,
+//             style: TextStyle(color: textColor ?? Colors.black),
+//             onChanged: onChanged,
+//             onTap: onTap,
+//             decoration: InputDecoration(
+//               counterText: '', // ✅ Hides character counter for cleaner UI
+//               filled: true,
+//               fillColor: fillColor ?? Colors.white,
+//               hintText: hintText,
+//               hintStyle: TextStyle(color: hintColor ?? Colors.grey),
+//               border: OutlineInputBorder(
+//                 borderRadius: BorderRadius.circular(10),
+//                 borderSide: const BorderSide(color: Colors.black12),
+//               ),
+//               prefixIcon:
+//                   prefixIcon != null
+//                       ? Icon(
+//                         prefixIcon,
+//                         color: prefixIconColor ?? Colors.black54,
+//                       )
+//                       : null,
+//               suffixIcon:
+//                   suffixIcon != null
+//                       ? GestureDetector(
+//                         onTap: onSuffixIconTap,
+//                         child: Icon(
+//                           suffixIcon,
+//                           color: suffixIconColor ?? Colors.black54,
+//                         ),
+//                       )
+//                       : null,
 //             ),
-//             prefixIcon:
-//                 prefixIcon != null
-//                     ? Icon(prefixIcon, color: prefixIconColor ?? Colors.black54)
-//                     : null,
-//             suffixIcon:
-//                 suffixIcon != null
-//                     ? GestureDetector(
-//                       onTap: onSuffixIconTap,
-//                       child: Icon(
-//                         suffixIcon,
-//                         color: suffixIconColor ?? Colors.black54,
-//                       ),
-//                     )
-//                     : null,
 //           ),
 //         ),
 //         const SizedBox(height: 15),

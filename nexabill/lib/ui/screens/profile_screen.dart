@@ -1,8 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nexabill/core/theme.dart';
+import 'package:nexabill/data/marts_data.dart';
 import 'package:nexabill/providers/profile_provider.dart';
 import 'package:nexabill/ui/widgets/custom_dropdown.dart';
 import 'package:nexabill/ui/widgets/custom_textfield.dart';
@@ -563,6 +562,218 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     ref,
                                   ),
                             ),
+                            if (profileState.role.toLowerCase() ==
+                                "cashier") ...[
+                              const SizedBox(height: 5),
+                              // Column(
+                              //   crossAxisAlignment: CrossAxisAlignment.start,
+                              //   children: [
+                              //     Text(
+                              //       "Role",
+                              //       style: TextStyle(
+                              //         fontSize: 16,
+                              //         fontWeight: FontWeight.bold,
+                              //         color:
+                              //             isDarkMode
+                              //                 ? Colors.white
+                              //                 : Colors.black,
+                              //       ),
+                              //     ),
+                              //     const SizedBox(height: 5),
+                              //     CustomDropdown(
+                              //       value:
+                              //           profileState.role.isNotEmpty
+                              //               ? profileState.role
+                              //               : null,
+                              //       hintText: "Select your role",
+                              //       items: roles,
+                              //       onChanged: (newValue) {
+                              //         profileNotifier.updateProfileField(
+                              //           "role",
+                              //           newValue,
+                              //           ref,
+                              //         );
+                              //       },
+                              //       textColor:
+                              //           isDarkMode
+                              //               ? Colors.black
+                              //               : Colors.white,
+                              //       hintColor:
+                              //           isDarkMode
+                              //               ? Colors.black54
+                              //               : Colors.white70,
+                              //       fillColor:
+                              //           isDarkMode
+                              //               ? Colors.white
+                              //               : Colors.black,
+                              //       prefixIcon: Icons.manage_accounts,
+                              //       suffixIcon: Icons.arrow_drop_down,
+                              //       iconColor:
+                              //           isDarkMode
+                              //               ? Colors.black54
+                              //               : Colors.black54,
+                              //     ),
+                              //   ],
+                              // ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Role",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          isDarkMode
+                                              ? Colors.white
+                                              : Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  IgnorePointer(
+                                    // 👈 Prevents user interaction
+                                    child: AbsorbPointer(
+                                      child: CustomDropdown(
+                                        value:
+                                            profileState.role.isNotEmpty
+                                                ? profileState.role
+                                                : null,
+                                        hintText: "Select your role",
+                                        items: roles,
+                                        onChanged:
+                                            (
+                                              _,
+                                            ) {}, // 👈 Will not be called due to IgnorePointer
+                                        textColor:
+                                            isDarkMode
+                                                ? Colors.black
+                                                : Colors.white,
+                                        hintColor:
+                                            isDarkMode
+                                                ? Colors.black54
+                                                : Colors.white70,
+                                        fillColor:
+                                            isDarkMode
+                                                ? Colors.white
+                                                : Colors.black,
+                                        prefixIcon: Icons.manage_accounts,
+                                        suffixIcon:
+                                            Icons
+                                                .lock, // 🔒 Icon for read-only field
+                                        iconColor:
+                                            isDarkMode
+                                                ? Colors.black54
+                                                : Colors.black54,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 15),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Mart",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          isDarkMode
+                                              ? Colors.white
+                                              : Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  CustomDropdown(
+                                    value:
+                                        profileState.mart.isNotEmpty
+                                            ? profileState.mart
+                                            : null,
+                                    hintText: "Select your mart",
+                                    items: marts,
+                                    onChanged: (newValue) {
+                                      profileNotifier.updateProfileField(
+                                        "mart",
+                                        newValue,
+                                        ref,
+                                      );
+                                    },
+                                    textColor:
+                                        isDarkMode
+                                            ? Colors.black
+                                            : Colors.white,
+                                    hintColor:
+                                        isDarkMode
+                                            ? Colors.black54
+                                            : Colors.white70,
+                                    fillColor:
+                                        isDarkMode
+                                            ? Colors.white
+                                            : Colors.black,
+                                    prefixIcon: Icons.store,
+                                    suffixIcon: Icons.arrow_drop_down,
+                                    iconColor:
+                                        isDarkMode
+                                            ? Colors.black54
+                                            : Colors.black54,
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 15),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Counter",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          isDarkMode
+                                              ? Colors.white
+                                              : Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  CustomDropdown(
+                                    value:
+                                        profileState.counterNumber.isNotEmpty
+                                            ? profileState.counterNumber
+                                            : null,
+                                    hintText: "Select your counter",
+                                    items: counters,
+                                    onChanged: (newValue) {
+                                      profileNotifier.updateProfileField(
+                                        "counterNumber",
+                                        newValue,
+                                        ref,
+                                      );
+                                    },
+                                    textColor:
+                                        isDarkMode
+                                            ? Colors.black
+                                            : Colors.white,
+                                    hintColor:
+                                        isDarkMode
+                                            ? Colors.black54
+                                            : Colors.white70,
+                                    fillColor:
+                                        isDarkMode
+                                            ? Colors.white
+                                            : Colors.black,
+                                    prefixIcon: Icons.confirmation_number,
+                                    suffixIcon: Icons.arrow_drop_down,
+                                    iconColor:
+                                        isDarkMode
+                                            ? Colors.black54
+                                            : Colors.black54,
+                                  ),
+                                ],
+                              ),
+                            ],
 
                             const SizedBox(height: 20),
                             SizedBox(

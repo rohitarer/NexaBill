@@ -1,11 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nexabill/core/theme.dart';
 import 'package:nexabill/providers/auth_provider.dart';
 import 'package:nexabill/services/auth_service.dart';
-import 'package:nexabill/ui/screens/home_screen.dart';
+import 'package:nexabill/services/role_routes.dart';
+import 'package:nexabill/ui/screens/customerHome_screen.dart';
 import 'package:nexabill/ui/screens/profile_screen.dart';
 import 'package:nexabill/ui/screens/signup_screen.dart';
+import 'package:nexabill/ui/widgets/custom_dropdown.dart';
 import '../widgets/custom_textfield.dart';
 import '../widgets/custom_button.dart';
 
@@ -21,6 +25,54 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isPasswordVisible = false;
+  final List<String> roles = ["Customer", "Cashier", "Admin"];
+  String? selectedRole;
+
+  // void _handleSignIn() {
+  //   if (!_formKey.currentState!.validate()) return;
+
+  //   final email = emailController.text.trim();
+  //   final password = passwordController.text.trim();
+  //   final authNotifier = ref.read(authNotifierProvider.notifier);
+
+  //   authNotifier.logIn(
+  //     email: email,
+  //     password: password,
+  //     onSuccess: () async {
+  //       debugPrint("✅ User Signed In: $email");
+
+  //       ScaffoldMessenger.of(
+  //         context,
+  //       ).showSnackBar(const SnackBar(content: Text("Login Successful!")));
+
+  //       // ✅ Check Profile Completion Status
+  //       bool isProfileComplete = await AuthService().isProfileComplete();
+
+  //       // ✅ Navigate to HomeScreen if profile is complete, otherwise ProfileScreen
+  //       if (!mounted) return;
+  //       Navigator.pushReplacement(
+  //         context,
+  //         MaterialPageRoute(
+  //           builder:
+  //               (context) =>
+  //                   isProfileComplete
+  //                       ? RoleRoutes.getHomeScreen(role, isComplete)
+  //                       : ProfileScreen(),
+  //         ),
+  //       );
+  //     },
+  //     onError: (errorMessage) {
+  //       if (errorMessage != null) {
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           SnackBar(
+  //             content: Text("❌ Error: $errorMessage"),
+  //             backgroundColor: Theme.of(context).colorScheme.error,
+  //           ),
+  //         );
+  //       }
+  //     },
+  //   );
+  // }
 
   void _handleSignIn() {
     if (!_formKey.currentState!.validate()) return;
@@ -39,19 +91,41 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           context,
         ).showSnackBar(const SnackBar(content: Text("Login Successful!")));
 
-        // ✅ Check Profile Completion Status
-        bool isProfileComplete = await AuthService().isProfileComplete();
+        // ✅ Fetch user profile from Firestore
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) return;
 
-        // ✅ Navigate to HomeScreen if profile is complete, otherwise ProfileScreen
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) =>
-                    isProfileComplete ? const HomeScreen() : ProfileScreen(),
-          ),
-        );
+        try {
+          final snapshot =
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .get();
+
+          final data = snapshot.data();
+          if (data == null) return;
+
+          final String role = data['role'] ?? 'Customer';
+          final bool isProfileComplete = data['isProfileComplete'] ?? false;
+
+          // ✅ Navigate accordingly
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) =>
+                      isProfileComplete
+                          ? RoleRoutes.getHomeScreen(role, isProfileComplete)
+                          : ProfileScreen(),
+            ),
+          );
+        } catch (e) {
+          debugPrint("❌ Error fetching profile: $e");
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to load profile data.")),
+          );
+        }
       },
       onError: (errorMessage) {
         if (errorMessage != null) {
@@ -95,6 +169,42 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Role",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: labelColor, // ✅ Matches label color
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    CustomDropdown(
+                      value: roles.contains(selectedRole) ? selectedRole : null,
+                      hintText: "Select your role",
+                      items: roles,
+                      onChanged: (newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            selectedRole = newValue;
+                          });
+                        }
+                      },
+                      textColor: textColor, // ✅ Text color
+                      hintColor: hintColor, // ✅ Hint color
+                      fillColor: inputFillColor, // ✅ Background fill color
+                      prefixIcon:
+                          Icons
+                              .supervisor_account_rounded, // ✅ Role-specific icon
+                      iconColor:
+                          iconColor, // ✅ Consistent with prefix/suffix icons
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15),
+
                 // Email Field
                 CustomTextField(
                   label: "Email",

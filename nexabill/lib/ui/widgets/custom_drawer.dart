@@ -47,7 +47,7 @@ class CustomDrawer extends ConsumerWidget {
               bool confirmLogout = await _showLogoutDialog(context);
               if (confirmLogout) {
                 // ✅ Call Logout Function from AuthNotifier (Riverpod)
-                await authNotifier.logOut();
+                await authNotifier.logOut(ref);
               }
             },
           ),
