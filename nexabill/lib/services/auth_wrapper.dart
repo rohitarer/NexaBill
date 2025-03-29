@@ -86,7 +86,7 @@ class AuthWrapper extends StatelessWidget {
             final role = profileData['role'] ?? 'Customer';
             final isComplete = profileData['isProfileComplete'] ?? false;
 
-            return RoleRoutes.getHomeScreen(role, isComplete);
+            return AppRoutes.getHomeScreen(role, isComplete);
           },
         );
       },

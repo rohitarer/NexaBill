@@ -116,7 +116,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               builder:
                   (context) =>
                       isProfileComplete
-                          ? RoleRoutes.getHomeScreen(role, isProfileComplete)
+                          ? AppRoutes.getHomeScreen(role, isProfileComplete)
                           : ProfileScreen(),
             ),
           );
