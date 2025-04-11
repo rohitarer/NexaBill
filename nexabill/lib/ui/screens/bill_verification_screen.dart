@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nexabill/core/theme.dart';
 import 'package:nexabill/ui/widgets/custom_textfield.dart';
 import 'package:nexabill/providers/bill_verification_provider.dart';
 import 'package:nexabill/ui/widgets/bill_container.dart';

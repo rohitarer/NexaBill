@@ -22,14 +22,14 @@ class CustomBottomNavBar extends StatelessWidget {
   final Color? backgroundColor;
 
   const CustomBottomNavBar({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.items,
     required this.onTap,
     this.showLabels = true,
     this.unselectedColor,
     this.backgroundColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

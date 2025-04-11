@@ -9,7 +9,12 @@ import 'package:nexabill/data/state_data.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final bool fromHome;
-  ProfileScreen({super.key, this.fromHome = false}); // default = false
+  final bool isInsideTabs;
+  const ProfileScreen({
+    super.key,
+    this.fromHome = false,
+    this.isInsideTabs = false,
+  }); // default = false
 
   @override
   _ProfileScreenState createState() => _ProfileScreenState();
@@ -93,7 +98,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       appBar:
-          widget.fromHome
+          widget.fromHome && !widget.isInsideTabs
               ? AppBar(
                 title: const Text("Edit Profile"),
                 backgroundColor: theme.appBarTheme.backgroundColor,
@@ -419,6 +424,59 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                             const SizedBox(height: 10),
 
+                            // 🔐 Role Field (Read-only)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Role",
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        isDarkMode
+                                            ? Colors.white
+                                            : Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                IgnorePointer(
+                                  child: AbsorbPointer(
+                                    child: CustomDropdown(
+                                      value:
+                                          profileState.role.isNotEmpty
+                                              ? profileState.role
+                                              : null,
+                                      hintText: "Select your role",
+                                      items: roles,
+                                      onChanged:
+                                          (_) {}, // Will not be triggered
+                                      textColor:
+                                          isDarkMode
+                                              ? Colors.black
+                                              : Colors.black,
+                                      hintColor:
+                                          isDarkMode
+                                              ? Colors.black54
+                                              : Colors.white70,
+                                      fillColor:
+                                          isDarkMode
+                                              ? Colors.white
+                                              : Colors.white,
+                                      prefixIcon: Icons.person_pin,
+                                      suffixIcon: Icons.lock,
+                                      iconColor:
+                                          isDarkMode
+                                              ? Colors.black54
+                                              : Colors.black54,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 10),
+
                             // ✅ Address Field (Newly Added)
                             CustomTextField(
                               controller: addressController,
@@ -506,22 +564,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     }
                                   },
                                   textColor:
-                                      isDarkMode ? Colors.black : Colors.white,
+                                      isDarkMode ? Colors.black : Colors.black,
                                   hintColor:
                                       isDarkMode
                                           ? Colors.black54
                                           : Colors
-                                              .white70, // ✅ Fixed Hint Color
+                                              .black54, // ✅ Fixed Hint Color
                                   fillColor:
                                       isDarkMode
                                           ? Colors.white
-                                          : Colors.black, // ✅ Fixed Background
+                                          : Colors.white, // ✅ Fixed Background
                                   prefixIcon:
                                       Icons
                                           .location_on, // ✅ Optional Prefix Icon
-                                  suffixIcon:
-                                      Icons
-                                          .arrow_drop_down, // ✅ Optional Suffix Icon
+
                                   iconColor:
                                       isDarkMode
                                           ? AppTheme.secondaryColor
@@ -559,56 +615,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             if (profileState.role.toLowerCase() ==
                                 "cashier") ...[
                               const SizedBox(height: 5),
-                              // Column(
-                              //   crossAxisAlignment: CrossAxisAlignment.start,
-                              //   children: [
-                              //     Text(
-                              //       "Role",
-                              //       style: TextStyle(
-                              //         fontSize: 16,
-                              //         fontWeight: FontWeight.bold,
-                              //         color:
-                              //             isDarkMode
-                              //                 ? Colors.white
-                              //                 : Colors.black,
-                              //       ),
-                              //     ),
-                              //     const SizedBox(height: 5),
-                              //     CustomDropdown(
-                              //       value:
-                              //           profileState.role.isNotEmpty
-                              //               ? profileState.role
-                              //               : null,
-                              //       hintText: "Select your role",
-                              //       items: roles,
-                              //       onChanged: (newValue) {
-                              //         profileNotifier.updateProfileField(
-                              //           "role",
-                              //           newValue,
-                              //           ref,
-                              //         );
-                              //       },
-                              //       textColor:
-                              //           isDarkMode
-                              //               ? Colors.black
-                              //               : Colors.white,
-                              //       hintColor:
-                              //           isDarkMode
-                              //               ? Colors.black54
-                              //               : Colors.white70,
-                              //       fillColor:
-                              //           isDarkMode
-                              //               ? Colors.white
-                              //               : Colors.black,
-                              //       prefixIcon: Icons.manage_accounts,
-                              //       suffixIcon: Icons.arrow_drop_down,
-                              //       iconColor:
-                              //           isDarkMode
-                              //               ? Colors.black54
-                              //               : Colors.black54,
-                              //     ),
-                              //   ],
-                              // ),
+
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -769,308 +776,173 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                             ],
                             const SizedBox(height: 20),
-                            // profileState.role.toLowerCase() == "admin"
-                            //     ? Align(
-                            //       alignment: Alignment.centerRight,
-                            //       child: ElevatedButton(
-                            //         style: ElevatedButton.styleFrom(
-                            //           backgroundColor: AppTheme.primaryColor,
-                            //           shape: RoundedRectangleBorder(
-                            //             borderRadius: BorderRadius.circular(10),
-                            //           ),
-                            //           padding: const EdgeInsets.symmetric(
-                            //             horizontal: 24,
-                            //             vertical: 14,
-                            //           ),
-                            //         ),
-                            //         onPressed:
-                            //             profileState.isLoading
-                            //                 ? null
-                            //                 : () async {
-                            //                   if (_profileFormKey.currentState!
-                            //                       .validate()) {
-                            //                     profileNotifier
-                            //                         .updateProfileField(
-                            //                           "fullName",
-                            //                           fullNameController.text
-                            //                               .trim(),
-                            //                           ref,
-                            //                         );
-                            //                     profileNotifier
-                            //                         .updateProfileField(
-                            //                           "phoneNumber",
-                            //                           phoneController.text
-                            //                               .trim(),
-                            //                           ref,
-                            //                         );
-                            //                     profileNotifier
-                            //                         .updateProfileField(
-                            //                           "address",
-                            //                           addressController.text
-                            //                               .trim(),
-                            //                           ref,
-                            //                         );
-                            //                     profileNotifier
-                            //                         .updateProfileField(
-                            //                           "city",
-                            //                           cityController.text
-                            //                               .trim(),
-                            //                           ref,
-                            //                         );
-                            //                     profileNotifier
-                            //                         .updateProfileField(
-                            //                           "pin",
-                            //                           pinController.text.trim(),
-                            //                           ref,
-                            //                         );
 
-                            //                     await profileNotifier
-                            //                         .saveProfile(context, ref);
-
-                            //                     if (context.mounted) {
-                            //                       Navigator.pushNamed(
-                            //                         context,
-                            //                         "/admin/martDetails",
-                            //                       );
-                            //                     }
-                            //                   }
-                            //                 },
-                            //         child:
-                            //             profileState.isLoading
-                            //                 ? const CircularProgressIndicator(
-                            //                   color: Colors.white,
-                            //                 )
-                            //                 : const Text(
-                            //                   "Save & Next",
-                            //                   style: TextStyle(
-                            //                     fontSize: 18,
-                            //                     color: Colors.white,
-                            //                   ),
-                            //                 ),
-                            //       ),
-                            //     )
-                            //     : SizedBox(
-                            //       width: double.infinity,
-                            //       child: ElevatedButton(
-                            //         style: ElevatedButton.styleFrom(
-                            //           backgroundColor: AppTheme.primaryColor,
-                            //           shape: RoundedRectangleBorder(
-                            //             borderRadius: BorderRadius.circular(10),
-                            //           ),
-                            //           padding: const EdgeInsets.symmetric(
-                            //             vertical: 14,
-                            //           ),
-                            //         ),
-                            //         onPressed:
-                            //             profileState.isLoading
-                            //                 ? null
-                            //                 : () async {
-                            //                   if (_profileFormKey.currentState!
-                            //                       .validate()) {
-                            //                     profileNotifier
-                            //                         .updateProfileField(
-                            //                           "fullName",
-                            //                           fullNameController.text
-                            //                               .trim(),
-                            //                           ref,
-                            //                         );
-                            //                     profileNotifier
-                            //                         .updateProfileField(
-                            //                           "phoneNumber",
-                            //                           phoneController.text
-                            //                               .trim(),
-                            //                           ref,
-                            //                         );
-                            //                     profileNotifier
-                            //                         .updateProfileField(
-                            //                           "address",
-                            //                           addressController.text
-                            //                               .trim(),
-                            //                           ref,
-                            //                         );
-                            //                     profileNotifier
-                            //                         .updateProfileField(
-                            //                           "city",
-                            //                           cityController.text
-                            //                               .trim(),
-                            //                           ref,
-                            //                         );
-                            //                     profileNotifier
-                            //                         .updateProfileField(
-                            //                           "pin",
-                            //                           pinController.text.trim(),
-                            //                           ref,
-                            //                         );
-
-                            //                     await profileNotifier
-                            //                         .saveProfile(context, ref);
-                            //                   }
-                            //                 },
-                            //         child:
-                            //             profileState.isLoading
-                            //                 ? const CircularProgressIndicator(
-                            //                   color: Colors.white,
-                            //                 )
-                            //                 : const Text(
-                            //                   "Save",
-                            //                   style: TextStyle(
-                            //                     fontSize: 18,
-                            //                     color: Colors.white,
-                            //                   ),
-                            //                 ),
-                            //       ),
-                            //     ),
-                            profileState.role.toLowerCase() == "admin"
-                                ? Align(
-                                  alignment: Alignment.centerRight,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.primaryColor,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                            if (!widget.isInsideTabs)
+                              profileState.role.toLowerCase() == "admin"
+                                  ? Align(
+                                    alignment: Alignment.centerRight,
+                                    child: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppTheme.primaryColor,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 24,
+                                          vertical: 14,
+                                        ),
                                       ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 24,
-                                        vertical: 14,
-                                      ),
-                                    ),
-                                    onPressed:
-                                        profileState.isLoading
-                                            ? null
-                                            : () async {
-                                              if (_profileFormKey.currentState!
-                                                  .validate()) {
-                                                profileNotifier
-                                                    .updateProfileField(
-                                                      "fullName",
-                                                      fullNameController.text
-                                                          .trim(),
-                                                      ref,
-                                                    );
-                                                profileNotifier
-                                                    .updateProfileField(
-                                                      "phoneNumber",
-                                                      phoneController.text
-                                                          .trim(),
-                                                      ref,
-                                                    );
-                                                profileNotifier
-                                                    .updateProfileField(
-                                                      "address",
-                                                      addressController.text
-                                                          .trim(),
-                                                      ref,
-                                                    );
-                                                profileNotifier
-                                                    .updateProfileField(
-                                                      "city",
-                                                      cityController.text
-                                                          .trim(),
-                                                      ref,
-                                                    );
-                                                profileNotifier
-                                                    .updateProfileField(
-                                                      "pin",
-                                                      pinController.text.trim(),
-                                                      ref,
-                                                    );
+                                      onPressed:
+                                          profileState.isLoading
+                                              ? null
+                                              : () async {
+                                                if (_profileFormKey
+                                                    .currentState!
+                                                    .validate()) {
+                                                  profileNotifier
+                                                      .updateProfileField(
+                                                        "fullName",
+                                                        fullNameController.text
+                                                            .trim(),
+                                                        ref,
+                                                      );
+                                                  profileNotifier
+                                                      .updateProfileField(
+                                                        "phoneNumber",
+                                                        phoneController.text
+                                                            .trim(),
+                                                        ref,
+                                                      );
+                                                  profileNotifier
+                                                      .updateProfileField(
+                                                        "address",
+                                                        addressController.text
+                                                            .trim(),
+                                                        ref,
+                                                      );
+                                                  profileNotifier
+                                                      .updateProfileField(
+                                                        "city",
+                                                        cityController.text
+                                                            .trim(),
+                                                        ref,
+                                                      );
+                                                  profileNotifier
+                                                      .updateProfileField(
+                                                        "pin",
+                                                        pinController.text
+                                                            .trim(),
+                                                        ref,
+                                                      );
 
-                                                await profileNotifier
-                                                    .saveProfile(context, ref);
+                                                  await profileNotifier
+                                                      .saveProfile(
+                                                        context,
+                                                        ref,
+                                                      );
 
-                                                if (context.mounted) {
-                                                  Navigator.pushNamed(
-                                                    context,
-                                                    "/mart-details",
-                                                  ); // ✅ Updated route
+                                                  if (context.mounted) {
+                                                    Navigator.pushNamed(
+                                                      context,
+                                                      "/mart-details",
+                                                    ); // ✅ Updated route
+                                                  }
                                                 }
-                                              }
-                                            },
-                                    child:
-                                        profileState.isLoading
-                                            ? const CircularProgressIndicator(
-                                              color: Colors.white,
-                                            )
-                                            : const Text(
-                                              "Save & Next",
-                                              style: TextStyle(
-                                                fontSize: 18,
+                                              },
+                                      child:
+                                          profileState.isLoading
+                                              ? const CircularProgressIndicator(
                                                 color: Colors.white,
+                                              )
+                                              : const Text(
+                                                "Save & Next",
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  color: Colors.white,
+                                                ),
                                               ),
-                                            ),
-                                  ),
-                                )
-                                : SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.primaryColor,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                      ),
                                     ),
-                                    onPressed:
-                                        profileState.isLoading
-                                            ? null
-                                            : () async {
-                                              if (_profileFormKey.currentState!
-                                                  .validate()) {
-                                                profileNotifier
-                                                    .updateProfileField(
-                                                      "fullName",
-                                                      fullNameController.text
-                                                          .trim(),
-                                                      ref,
-                                                    );
-                                                profileNotifier
-                                                    .updateProfileField(
-                                                      "phoneNumber",
-                                                      phoneController.text
-                                                          .trim(),
-                                                      ref,
-                                                    );
-                                                profileNotifier
-                                                    .updateProfileField(
-                                                      "address",
-                                                      addressController.text
-                                                          .trim(),
-                                                      ref,
-                                                    );
-                                                profileNotifier
-                                                    .updateProfileField(
-                                                      "city",
-                                                      cityController.text
-                                                          .trim(),
-                                                      ref,
-                                                    );
-                                                profileNotifier
-                                                    .updateProfileField(
-                                                      "pin",
-                                                      pinController.text.trim(),
-                                                      ref,
-                                                    );
+                                  )
+                                  : SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppTheme.primaryColor,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 14,
+                                        ),
+                                      ),
+                                      onPressed:
+                                          profileState.isLoading
+                                              ? null
+                                              : () async {
+                                                if (_profileFormKey
+                                                    .currentState!
+                                                    .validate()) {
+                                                  profileNotifier
+                                                      .updateProfileField(
+                                                        "fullName",
+                                                        fullNameController.text
+                                                            .trim(),
+                                                        ref,
+                                                      );
+                                                  profileNotifier
+                                                      .updateProfileField(
+                                                        "phoneNumber",
+                                                        phoneController.text
+                                                            .trim(),
+                                                        ref,
+                                                      );
+                                                  profileNotifier
+                                                      .updateProfileField(
+                                                        "address",
+                                                        addressController.text
+                                                            .trim(),
+                                                        ref,
+                                                      );
+                                                  profileNotifier
+                                                      .updateProfileField(
+                                                        "city",
+                                                        cityController.text
+                                                            .trim(),
+                                                        ref,
+                                                      );
+                                                  profileNotifier
+                                                      .updateProfileField(
+                                                        "pin",
+                                                        pinController.text
+                                                            .trim(),
+                                                        ref,
+                                                      );
 
-                                                await profileNotifier
-                                                    .saveProfile(context, ref);
-                                              }
-                                            },
-                                    child:
-                                        profileState.isLoading
-                                            ? const CircularProgressIndicator(
-                                              color: Colors.white,
-                                            )
-                                            : const Text(
-                                              "Save",
-                                              style: TextStyle(
-                                                fontSize: 18,
+                                                  await profileNotifier
+                                                      .saveProfile(
+                                                        context,
+                                                        ref,
+                                                      );
+                                                }
+                                              },
+                                      child:
+                                          profileState.isLoading
+                                              ? const CircularProgressIndicator(
                                                 color: Colors.white,
+                                              )
+                                              : const Text(
+                                                "Save",
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  color: Colors.white,
+                                                ),
                                               ),
-                                            ),
+                                    ),
                                   ),
-                                ),
                           ],
                         ),
                       ),

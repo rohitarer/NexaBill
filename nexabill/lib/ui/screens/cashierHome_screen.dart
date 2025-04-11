@@ -5,7 +5,7 @@ import 'package:nexabill/ui/screens/payments_screen.dart';
 import 'package:nexabill/ui/screens/bill_verification_screen.dart';
 import 'package:nexabill/ui/widgets/custom_bottom_navbar.dart';
 import 'package:nexabill/ui/widgets/custom_drawer.dart';
-import 'package:nexabill/providers/home_provider.dart';
+import 'package:nexabill/providers/customer_home_provider.dart';
 import 'package:nexabill/ui/screens/profile_screen.dart';
 
 class CashierHomeScreen extends ConsumerStatefulWidget {

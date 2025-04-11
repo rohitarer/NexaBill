@@ -156,13 +156,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         });
                       }
                     },
-                    textColor: isDarkMode ? Colors.black : Colors.white,
-                    hintColor: isDarkMode ? Colors.black54 : Colors.white70,
-                    fillColor: isDarkMode ? Colors.white : Colors.black,
+                    textColor: isDarkMode ? Colors.black : Colors.black,
+                    hintColor: isDarkMode ? Colors.black54 : Colors.black54,
+                    fillColor: isDarkMode ? Colors.white : Colors.white,
                     prefixIcon:
                         Icons
                             .supervisor_account_rounded, // 👥 Different icon from name
-                    suffixIcon: Icons.arrow_drop_down,
                     iconColor:
                         isDarkMode
                             ? Colors.black54

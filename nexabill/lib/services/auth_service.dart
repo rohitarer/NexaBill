@@ -59,44 +59,6 @@ class AuthService {
     }
   }
 
-  // ✅ Check Profile Completion (Returns `true` or `false`)
-  // Future<bool> isProfileComplete() async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-
-  //   // 🔹 **First, Check Locally**
-  //   if (prefs.containsKey("isProfileComplete")) {
-  //     return prefs.getBool("isProfileComplete") ?? false;
-  //   }
-
-  //   // 🔹 **Then Check Firebase**
-  //   User? user = _auth.currentUser;
-  //   if (user == null || user.email == null) {
-  //     return false; // No user logged in
-  //   }
-
-  //   try {
-  //     DocumentSnapshot userDoc =
-  //         await _firestore.collection("users").doc(user.uid).get();
-
-  //     if (!userDoc.exists || userDoc.data() == null) {
-  //       return false;
-  //     }
-
-  //     // ✅ Extract User Data
-  //     Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-
-  //     bool isComplete =
-  //         userData["isProfileComplete"] ?? false; // ✅ Read from Firestore
-
-  //     // ✅ Store in Local Storage
-  //     await prefs.setBool("isProfileComplete", isComplete);
-
-  //     return isComplete;
-  //   } catch (e) {
-  //     return false;
-  //   }
-  // }
-
   Future<bool> isProfileComplete() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
 

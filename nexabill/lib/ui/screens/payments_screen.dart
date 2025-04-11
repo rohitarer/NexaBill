@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nexabill/core/theme.dart';
 import 'package:nexabill/providers/payments_provider.dart';
 import 'package:nexabill/ui/screens/bill_details_screen.dart';
 

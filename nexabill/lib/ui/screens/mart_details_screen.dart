@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:nexabill/core/theme.dart';
 import 'package:nexabill/data/state_data.dart';
 import 'package:nexabill/providers/profile_provider.dart';
@@ -13,7 +10,8 @@ import 'package:nexabill/ui/widgets/custom_textfield.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MartDetailsScreen extends ConsumerStatefulWidget {
-  const MartDetailsScreen({super.key});
+  final bool isInsideTabs;
+  const MartDetailsScreen({super.key, this.isInsideTabs = false});
 
   @override
   ConsumerState<MartDetailsScreen> createState() => _MartDetailsScreenState();
@@ -96,7 +94,10 @@ class _MartDetailsScreenState extends ConsumerState<MartDetailsScreen> {
     final martCoverImages = profileState.martCoverFiles;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mart Details')),
+      appBar:
+          widget.isInsideTabs
+              ? null
+              : AppBar(title: const Text('Mart Details')),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -178,7 +179,7 @@ class _MartDetailsScreenState extends ConsumerState<MartDetailsScreen> {
                           radius: 50,
                           backgroundImage:
                               martLogo != null
-                                  ? FileImage(martLogo!)
+                                  ? FileImage(martLogo)
                                   : const NetworkImage(
                                         "https://www.w3schools.com/w3images/avatar2.png",
                                       )
@@ -414,350 +415,172 @@ class _MartDetailsScreenState extends ConsumerState<MartDetailsScreen> {
                       ],
                     ),
                   ),
-                  // Row(
-                  //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  //   children: [
-                  //     // 🔙 Previous Button (Navigate to Profile)
-                  //     ElevatedButton(
-                  //       style: ElevatedButton.styleFrom(
-                  //         backgroundColor: Colors.grey[300],
-                  //         shape: RoundedRectangleBorder(
-                  //           borderRadius: BorderRadius.circular(10),
-                  //         ),
-                  //         padding: const EdgeInsets.symmetric(
-                  //           horizontal: 20,
-                  //           vertical: 14,
-                  //         ),
-                  //       ),
-                  //       onPressed: () {
-                  //         debugPrint("🔙 Navigating to /profile");
-                  //         Navigator.pushNamed(context, "/profile");
-                  //       },
-                  //       child: const Text(
-                  //         "Previous",
-                  //         style: TextStyle(color: Colors.black, fontSize: 16),
-                  //       ),
-                  //     ),
-
-                  //     // ✅ Show "Save & Next" only for admin
-                  //     profileState.role.toLowerCase() == "admin"
-                  //         ? Align(
-                  //           alignment: Alignment.centerRight,
-                  //           child: ElevatedButton(
-                  //             style: ElevatedButton.styleFrom(
-                  //               backgroundColor: AppTheme.primaryColor,
-                  //               shape: RoundedRectangleBorder(
-                  //                 borderRadius: BorderRadius.circular(10),
-                  //               ),
-                  //               padding: const EdgeInsets.symmetric(
-                  //                 horizontal: 24,
-                  //                 vertical: 14,
-                  //               ),
-                  //             ),
-                  //             onPressed:
-                  //                 profileState.isLoading
-                  //                     ? null
-                  //                     : () async {
-                  //                       debugPrint("💾 Save & Next pressed");
-                  //                       debugPrint(
-                  //                         "📋 Checking mart form values:",
-                  //                       );
-                  //                       debugPrint(
-                  //                         "martName: ${martNameController.text}",
-                  //                       );
-                  //                       debugPrint(
-                  //                         "martContact: ${martContactController.text}",
-                  //                       );
-                  //                       debugPrint(
-                  //                         "martAddress: ${martAddressController.text}",
-                  //                       );
-                  //                       debugPrint(
-                  //                         "martCity: ${martCityController.text}",
-                  //                       );
-                  //                       debugPrint(
-                  //                         "martState: ${martStateController.text}",
-                  //                       );
-                  //                       debugPrint(
-                  //                         "martPinCode: ${martPinCodeController.text}",
-                  //                       );
-                  //                       debugPrint(
-                  //                         "martGstin: ${martGstinController.text}",
-                  //                       );
-                  //                       debugPrint(
-                  //                         "martCin: ${martCinController.text}",
-                  //                       );
-
-                  //                       if (_martFormKey.currentState
-                  //                               ?.validate() ??
-                  //                           false) {
-                  //                         debugPrint("✅ Mart form validated");
-
-                  //                         // Update mart fields to state
-                  //                         profileNotifier.updateProfileField(
-                  //                           "martName",
-                  //                           martNameController.text.trim(),
-                  //                           ref,
-                  //                         );
-                  //                         profileNotifier.updateProfileField(
-                  //                           "martContact",
-                  //                           martContactController.text.trim(),
-                  //                           ref,
-                  //                         );
-                  //                         profileNotifier.updateProfileField(
-                  //                           "martAddress",
-                  //                           martAddressController.text.trim(),
-                  //                           ref,
-                  //                         );
-                  //                         profileNotifier.updateProfileField(
-                  //                           "martCity",
-                  //                           martCityController.text.trim(),
-                  //                           ref,
-                  //                         );
-                  //                         // profileNotifier.updateProfileField(
-                  //                         //   "martState",
-                  //                         //   martStateController.text.trim(),
-                  //                         //   ref,
-                  //                         // );
-                  //                         if (profileState
-                  //                             .martState
-                  //                             .isNotEmpty) {
-                  //                           profileNotifier.updateProfileField(
-                  //                             "martState",
-                  //                             profileState.martState,
-                  //                             ref,
-                  //                           );
-                  //                         }
-
-                  //                         profileNotifier.updateProfileField(
-                  //                           "martPinCode",
-                  //                           martPinCodeController.text.trim(),
-                  //                           ref,
-                  //                         );
-
-                  //                         profileNotifier.updateProfileField(
-                  //                           "martGstin",
-                  //                           martGstinController.text.trim(),
-                  //                           ref,
-                  //                         );
-                  //                         profileNotifier.updateProfileField(
-                  //                           "martCin",
-                  //                           martCinController.text.trim(),
-                  //                           ref,
-                  //                         );
-
-                  //                         debugPrint(
-                  //                           "⏳ Calling saveProfile...",
-                  //                         );
-                  //                         await profileNotifier.saveProfile(
-                  //                           context,
-                  //                           ref,
-                  //                         );
-                  //                         debugPrint(
-                  //                           "✅ Finished saveProfile call",
-                  //                         );
-
-                  //                         // Navigate only if still on this screen
-                  //                         if (context.mounted) {
-                  //                           debugPrint(
-                  //                             "➡️ Navigating to /bank-details",
-                  //                           );
-                  //                           Navigator.pushNamed(
-                  //                             context,
-                  //                             "/bank-details",
-                  //                           );
-                  //                         }
-                  //                       } else {
-                  //                         debugPrint(
-                  //                           "❌ Mart form validation failed",
-                  //                         );
-                  //                       }
-                  //                     },
-                  //             child:
-                  //                 profileState.isLoading
-                  //                     ? const SizedBox(
-                  //                       height: 24,
-                  //                       width: 24,
-                  //                       child: CircularProgressIndicator(
-                  //                         color: Colors.white,
-                  //                         strokeWidth: 2.5,
-                  //                       ),
-                  //                     )
-                  //                     : const Text(
-                  //                       "Save & Next",
-                  //                       style: TextStyle(
-                  //                         fontSize: 18,
-                  //                         color: Colors.white,
-                  //                       ),
-                  //                     ),
-                  //           ),
-                  //         )
-                  //         : const SizedBox.shrink(), // ❌ No Save for non-admin
-                  //   ],
-                  // ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // 🔙 Previous Button (Navigate to Profile)
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey[300],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+                  if (!widget.isInsideTabs)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // 🔙 Previous Button (Navigate to Profile)
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[300],
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 14,
+                          onPressed: () {
+                            debugPrint("🔙 Navigating to /profile");
+                            Navigator.pushNamed(context, "/profile");
+                          },
+                          child: const Text(
+                            "Previous",
+                            style: TextStyle(color: Colors.black, fontSize: 16),
                           ),
                         ),
-                        onPressed: () {
-                          debugPrint("🔙 Navigating to /profile");
-                          Navigator.pushNamed(context, "/profile");
-                        },
-                        child: const Text(
-                          "Previous",
-                          style: TextStyle(color: Colors.black, fontSize: 16),
-                        ),
-                      ),
 
-                      // ✅ Show "Save & Next" only for admin
-                      profileState.role.toLowerCase() == "admin"
-                          ? Align(
-                            alignment: Alignment.centerRight,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryColor,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                        // ✅ Show "Save & Next" only for admin
+                        profileState.role.toLowerCase() == "admin"
+                            ? Align(
+                              alignment: Alignment.centerRight,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryColor,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 14,
+                                  ),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 14,
-                                ),
-                              ),
-                              onPressed:
-                                  profileState.isLoading
-                                      ? null
-                                      : () async {
-                                        debugPrint(
-                                          "\uD83D\uDCBE Save & Next pressed",
-                                        );
-                                        debugPrint(
-                                          "\uD83D\uDCCB Validating mart form...",
-                                        );
-
-                                        if (_martFormKey.currentState
-                                                ?.validate() ??
-                                            false) {
+                                onPressed:
+                                    profileState.isLoading
+                                        ? null
+                                        : () async {
                                           debugPrint(
-                                            "\u2705 Mart form validated",
+                                            "\uD83D\uDCBE Save & Next pressed",
+                                          );
+                                          debugPrint(
+                                            "\uD83D\uDCCB Validating mart form...",
                                           );
 
-                                          profileNotifier.updateProfileField(
-                                            "martName",
-                                            martNameController.text.trim(),
-                                            ref,
-                                          );
-                                          profileNotifier.updateProfileField(
-                                            "martContact",
-                                            martContactController.text.trim(),
-                                            ref,
-                                          );
-                                          profileNotifier.updateProfileField(
-                                            "martAddress",
-                                            martAddressController.text.trim(),
-                                            ref,
-                                          );
-                                          profileNotifier.updateProfileField(
-                                            "martCity",
-                                            martCityController.text.trim(),
-                                            ref,
-                                          );
+                                          if (_martFormKey.currentState
+                                                  ?.validate() ??
+                                              false) {
+                                            debugPrint(
+                                              "\u2705 Mart form validated",
+                                            );
 
-                                          if (profileState
-                                              .martState
-                                              .isNotEmpty) {
                                             profileNotifier.updateProfileField(
-                                              "martState",
-                                              profileState.martState,
+                                              "martName",
+                                              martNameController.text.trim(),
                                               ref,
                                             );
-                                          }
+                                            profileNotifier.updateProfileField(
+                                              "martContact",
+                                              martContactController.text.trim(),
+                                              ref,
+                                            );
+                                            profileNotifier.updateProfileField(
+                                              "martAddress",
+                                              martAddressController.text.trim(),
+                                              ref,
+                                            );
+                                            profileNotifier.updateProfileField(
+                                              "martCity",
+                                              martCityController.text.trim(),
+                                              ref,
+                                            );
 
-                                          profileNotifier.updateProfileField(
-                                            "martPinCode",
-                                            martPinCodeController.text.trim(),
-                                            ref,
-                                          );
-                                          profileNotifier.updateProfileField(
-                                            "martGstin",
-                                            martGstinController.text.trim(),
-                                            ref,
-                                          );
-                                          profileNotifier.updateProfileField(
-                                            "martCin",
-                                            martCinController.text.trim(),
-                                            ref,
-                                          );
+                                            if (profileState
+                                                .martState
+                                                .isNotEmpty) {
+                                              profileNotifier
+                                                  .updateProfileField(
+                                                    "martState",
+                                                    profileState.martState,
+                                                    ref,
+                                                  );
+                                            }
 
-                                          debugPrint(
-                                            "\u23F3 Calling saveProfile...",
-                                          );
-                                          await profileNotifier.saveProfile(
-                                            context,
-                                            ref,
-                                          );
-                                          debugPrint(
-                                            "\u2705 Finished saveProfile call",
-                                          );
+                                            profileNotifier.updateProfileField(
+                                              "martPinCode",
+                                              martPinCodeController.text.trim(),
+                                              ref,
+                                            );
+                                            profileNotifier.updateProfileField(
+                                              "martGstin",
+                                              martGstinController.text.trim(),
+                                              ref,
+                                            );
+                                            profileNotifier.updateProfileField(
+                                              "martCin",
+                                              martCinController.text.trim(),
+                                              ref,
+                                            );
 
-                                          debugPrint(
-                                            "\uD83D\uDCBE Attempting to set last route as /bank-details...",
-                                          );
-                                          await AppRoutes.setLastRoute(
-                                            '/bank-details',
-                                          );
-                                          debugPrint(
-                                            "\u2705 last_route saved as /bank-details",
-                                          );
-
-                                          if (context.mounted) {
                                             debugPrint(
-                                              "\u27A1\uFE0F Navigating to /bank-details screen...",
+                                              "\u23F3 Calling saveProfile...",
                                             );
-                                            Navigator.pushReplacementNamed(
+                                            await profileNotifier.saveProfile(
                                               context,
-                                              "/bank-details",
+                                              ref,
+                                            );
+                                            debugPrint(
+                                              "\u2705 Finished saveProfile call",
+                                            );
+
+                                            debugPrint(
+                                              "\uD83D\uDCBE Attempting to set last route as /bank-details...",
+                                            );
+                                            await AppRoutes.setLastRoute(
+                                              '/bank-details',
+                                            );
+                                            debugPrint(
+                                              "\u2705 last_route saved as /bank-details",
+                                            );
+
+                                            if (context.mounted) {
+                                              debugPrint(
+                                                "\u27A1\uFE0F Navigating to /bank-details screen...",
+                                              );
+                                              Navigator.pushReplacementNamed(
+                                                context,
+                                                "/bank-details",
+                                              );
+                                            }
+                                          } else {
+                                            debugPrint(
+                                              "\u274C Mart form validation failed",
                                             );
                                           }
-                                        } else {
-                                          debugPrint(
-                                            "\u274C Mart form validation failed",
-                                          );
-                                        }
-                                      },
+                                        },
 
-                              child:
-                                  profileState.isLoading
-                                      ? const SizedBox(
-                                        height: 24,
-                                        width: 24,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2.5,
+                                child:
+                                    profileState.isLoading
+                                        ? const SizedBox(
+                                          height: 24,
+                                          width: 24,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2.5,
+                                          ),
+                                        )
+                                        : const Text(
+                                          "Save & Next",
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            color: Colors.white,
+                                          ),
                                         ),
-                                      )
-                                      : const Text(
-                                        "Save & Next",
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                            ),
-                          )
-                          : const SizedBox.shrink(),
-                    ],
-                  ),
+                              ),
+                            )
+                            : const SizedBox.shrink(),
+                      ],
+                    ),
                 ],
               ),
             ),

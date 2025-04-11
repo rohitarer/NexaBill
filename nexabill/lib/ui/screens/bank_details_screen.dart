@@ -3,16 +3,15 @@ import 'dart:io';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:nexabill/core/theme.dart';
 import 'package:nexabill/providers/profile_provider.dart';
 import 'package:nexabill/services/role_routes.dart';
-import 'package:nexabill/ui/screens/adminHome_screen.dart';
 import 'package:nexabill/ui/screens/mart_details_screen.dart';
 import 'package:nexabill/ui/widgets/custom_textfield.dart';
 
 class BankDetailsScreen extends ConsumerStatefulWidget {
-  const BankDetailsScreen({super.key});
+  final bool isInsideTabs;
+  const BankDetailsScreen({super.key, this.isInsideTabs = false});
 
   @override
   ConsumerState<BankDetailsScreen> createState() => _BankDetailsScreenState();
@@ -65,7 +64,10 @@ class _BankDetailsScreenState extends ConsumerState<BankDetailsScreen> {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Bank Details")),
+      appBar:
+          widget.isInsideTabs
+              ? null
+              : AppBar(title: const Text('Bank Details')),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -196,124 +198,126 @@ class _BankDetailsScreenState extends ConsumerState<BankDetailsScreen> {
                       validator: (value) => value!.isEmpty ? "Required" : null,
                     ),
                     const SizedBox(height: 24),
+                    if (!widget.isInsideTabs)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // 🔙 Previous Button
+                          ElevatedButton(
+                            onPressed: () {
+                              final state = ref.read(profileNotifierProvider);
+                              final role = state.role.toLowerCase();
+                              final isProfileComplete = state.isProfileComplete;
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // 🔙 Previous Button
-                        ElevatedButton(
-                          onPressed: () {
-                            final state = ref.read(profileNotifierProvider);
-                            final role = state.role.toLowerCase();
-                            final isProfileComplete = state.isProfileComplete;
-
-                            if (role == 'admin') {
-                              if (!isProfileComplete) {
-                                // 🔙 Go to MartDetails if profile not complete
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const MartDetailsScreen(),
-                                  ),
-                                );
-                              } else {
-                                // ✅ If complete, go to admin home
-                                AppRoutes.navigateToHomeByRole(context, role);
-                              }
-                            } else {
-                              // 🔁 For non-admin roles, simply pop
-                              if (Navigator.canPop(context)) {
-                                Navigator.pop(context);
-                              } else {
-                                AppRoutes.navigateToHomeByRole(context, role);
-                              }
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey[300],
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 14,
-                            ),
-                          ),
-                          child: const Text(
-                            "Previous",
-                            style: TextStyle(color: Colors.black),
-                          ),
-                        ),
-
-                        // 💾 Save Button
-                        ElevatedButton(
-                          onPressed:
-                              profileState.isLoading
-                                  ? null
-                                  : () async {
-                                    if (_bankFormKey.currentState!.validate()) {
-                                      // Update all bank fields
-                                      profileNotifier.updateProfileField(
-                                        "bankHolder",
-                                        accountHolderController.text.trim(),
-                                        ref,
-                                      );
-                                      profileNotifier.updateProfileField(
-                                        "bankAccountNumber",
-                                        accountNumberController.text.trim(),
-                                        ref,
-                                      );
-                                      profileNotifier.updateProfileField(
-                                        "bankIFSC",
-                                        ifscController.text.trim(),
-                                        ref,
-                                      );
-                                      profileNotifier.updateProfileField(
-                                        "bankUPI",
-                                        upiController.text.trim(),
-                                        ref,
-                                      );
-
-                                      // Save profile
-                                      await profileNotifier.saveProfile(
-                                        context,
-                                        ref,
-                                      );
-
-                                      // ✅ Navigate to home if profile is now complete and role is admin
-                                      final state = ref.read(
-                                        profileNotifierProvider,
-                                      );
-                                      if (state.isProfileComplete &&
-                                          state.role.toLowerCase() == 'admin') {
-                                        AppRoutes.navigateToHomeByRole(
-                                          context,
-                                          state.role,
-                                        );
-                                      }
-                                    }
-                                  },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 14,
-                            ),
-                          ),
-                          child:
-                              profileState.isLoading
-                                  ? const SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2.5,
+                              if (role == 'admin') {
+                                if (!isProfileComplete) {
+                                  // 🔙 Go to MartDetails if profile not complete
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const MartDetailsScreen(),
                                     ),
-                                  )
-                                  : const Text(
-                                    "Save",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                        ),
-                      ],
-                    ),
+                                  );
+                                } else {
+                                  // ✅ If complete, go to admin home
+                                  AppRoutes.navigateToHomeByRole(context, role);
+                                }
+                              } else {
+                                // 🔁 For non-admin roles, simply pop
+                                if (Navigator.canPop(context)) {
+                                  Navigator.pop(context);
+                                } else {
+                                  AppRoutes.navigateToHomeByRole(context, role);
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey[300],
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 14,
+                              ),
+                            ),
+                            child: const Text(
+                              "Previous",
+                              style: TextStyle(color: Colors.black),
+                            ),
+                          ),
+
+                          // 💾 Save Button
+                          ElevatedButton(
+                            onPressed:
+                                profileState.isLoading
+                                    ? null
+                                    : () async {
+                                      if (_bankFormKey.currentState!
+                                          .validate()) {
+                                        // Update all bank fields
+                                        profileNotifier.updateProfileField(
+                                          "bankHolder",
+                                          accountHolderController.text.trim(),
+                                          ref,
+                                        );
+                                        profileNotifier.updateProfileField(
+                                          "bankAccountNumber",
+                                          accountNumberController.text.trim(),
+                                          ref,
+                                        );
+                                        profileNotifier.updateProfileField(
+                                          "bankIFSC",
+                                          ifscController.text.trim(),
+                                          ref,
+                                        );
+                                        profileNotifier.updateProfileField(
+                                          "bankUPI",
+                                          upiController.text.trim(),
+                                          ref,
+                                        );
+
+                                        // Save profile
+                                        await profileNotifier.saveProfile(
+                                          context,
+                                          ref,
+                                        );
+
+                                        // ✅ Navigate to home if profile is now complete and role is admin
+                                        final state = ref.read(
+                                          profileNotifierProvider,
+                                        );
+                                        if (state.isProfileComplete &&
+                                            state.role.toLowerCase() ==
+                                                'admin') {
+                                          AppRoutes.navigateToHomeByRole(
+                                            context,
+                                            state.role,
+                                          );
+                                        }
+                                      }
+                                    },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 14,
+                              ),
+                            ),
+                            child:
+                                profileState.isLoading
+                                    ? const SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2.5,
+                                      ),
+                                    )
+                                    : const Text(
+                                      "Save",
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),

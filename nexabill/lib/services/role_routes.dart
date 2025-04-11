@@ -4,9 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nexabill/ui/screens/profile_screen.dart';
 import 'package:nexabill/ui/screens/mart_details_screen.dart';
 import 'package:nexabill/ui/screens/bank_details_screen.dart';
-import 'package:nexabill/ui/screens/adminHome_screen.dart';
+import 'package:nexabill/ui/screens/admin_home_screen.dart';
 import 'package:nexabill/ui/screens/cashierHome_screen.dart';
-import 'package:nexabill/ui/screens/customerHome_screen.dart';
+import 'package:nexabill/ui/screens/customer_home_screen.dart';
 import 'package:nexabill/ui/screens/signin_screen.dart';
 
 class AppRoutes {

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -10,9 +9,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-import 'package:nexabill/providers/home_provider.dart';
+import 'package:nexabill/providers/customer_home_provider.dart';
 import 'package:nexabill/services/role_routes.dart';
-import 'package:nexabill/ui/screens/mart_details_screen.dart';
 import 'package:path_provider/path_provider.dart';
 
 final profileFutureProvider = FutureProvider<Map<String, dynamic>>((ref) async {
@@ -536,7 +534,6 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   }
 
   void updateProfileField(String fieldName, dynamic fieldValue, WidgetRef ref) {
-    // Sync specific providers
     if (fieldName == "gender") {
       ref.read(selectedGenderProvider.notifier).state = fieldValue;
     } else if (fieldName == "selectedState") {
@@ -576,12 +573,109 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
           fieldName == "martCoverFiles"
               ? List<File>.from(fieldValue)
               : state.martCoverFiles,
+      bankHolder: fieldName == "bankHolder" ? fieldValue : state.bankHolder,
+      bankAccountNumber:
+          fieldName == "bankAccountNumber"
+              ? fieldValue
+              : state.bankAccountNumber,
+      bankIFSC: fieldName == "bankIFSC" ? fieldValue : state.bankIFSC,
+      bankUPI: fieldName == "bankUPI" ? fieldValue : state.bankUPI,
+      bankName: fieldName == "bankName" ? fieldValue : state.bankName,
+      passbookImage:
+          fieldName == "passbookImage" ? fieldValue : state.passbookImage,
+      panImage: fieldName == "panImage" ? fieldValue : state.panImage,
+      aadharImage: fieldName == "aadharImage" ? fieldValue : state.aadharImage,
       profileImage: state.profileImage,
       profileImageUrl: state.profileImageUrl,
-      isProfileComplete: state.isProfileComplete,
+      isProfileComplete: _calculateProfileCompletion(
+        state.copyWith(
+          fullName: fieldName == "fullName" ? fieldValue : state.fullName,
+          phoneNumber:
+              fieldName == "phoneNumber" ? fieldValue : state.phoneNumber,
+          gender: fieldName == "gender" ? fieldValue : state.gender,
+          dob: fieldName == "dob" ? fieldValue : state.dob,
+          address: fieldName == "address" ? fieldValue : state.address,
+          city: fieldName == "city" ? fieldValue : state.city,
+          selectedState:
+              fieldName == "selectedState" ? fieldValue : state.selectedState,
+          pin: fieldName == "pin" ? fieldValue : state.pin,
+          profileImageUrl:
+              fieldName == "profileImageUrl"
+                  ? fieldValue
+                  : state.profileImageUrl,
+          role: fieldName == "role" ? fieldValue : state.role,
+          mart: fieldName == "mart" ? fieldValue : state.mart,
+          counterNumber:
+              fieldName == "counterNumber" ? fieldValue : state.counterNumber,
+        ),
+      ),
       isLoading: false,
       errorMessage: state.errorMessage,
     );
+  }
+
+  // bool _calculateProfileCompletion(ProfileState s) {
+  //   final role = s.role.toLowerCase();
+  //   final basicFields = [
+  //     s.fullName,
+  //     s.phoneNumber,
+  //     s.gender,
+  //     s.dob?.toIso8601String() ?? "",
+  //     s.address,
+  //     s.city,
+  //     s.selectedState,
+  //     s.pin,
+  //     s.profileImageUrl,
+  //     s.role,
+  //   ];
+
+  //   final isBasicComplete = basicFields.every(
+  //     (val) => val.toString().trim().isNotEmpty,
+  //   );
+
+  //   if (!isBasicComplete) return false;
+
+  //   if (role == "cashier") {
+  //     return s.mart.trim().isNotEmpty && s.counterNumber.trim().isNotEmpty;
+  //   } else if (role == "customer") {
+  //     return s.mart.trim().isNotEmpty;
+  //   } else if (role == "admin") {
+  //     return true;
+  //   }
+
+  //   return false;
+  // }
+
+  bool _calculateProfileCompletion(ProfileState s) {
+    final role = s.role.toLowerCase();
+    final basicFields = [
+      s.fullName,
+      s.phoneNumber,
+      s.gender,
+      s.dob?.toIso8601String() ?? "",
+      s.address,
+      s.city,
+      s.selectedState,
+      s.pin,
+      s.profileImageUrl,
+      s.role,
+    ];
+
+    final isBasicComplete = basicFields.every(
+      (val) => val.toString().trim().isNotEmpty,
+    );
+
+    if (!isBasicComplete) return false;
+
+    if (role == "cashier") {
+      return s.mart.trim().isNotEmpty && s.counterNumber.trim().isNotEmpty;
+    } else if (role == "customer") {
+      return true; // ✅ Changed: Customer only needs basic info
+    } else if (role == "admin") {
+      return true;
+    }
+
+    return false;
   }
 
   Future<void> saveProfile(BuildContext context, WidgetRef ref) async {
@@ -652,22 +746,42 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       }
 
       // ✅ Determine if profile is complete
-      final isComplete =
-          !isAdmin &&
-          [
+      final isComplete = () {
+        if (isAdmin) return true;
+        if (isCashier) {
+          return [
             state.fullName,
             state.phoneNumber,
             state.gender,
-            state.dob?.toIso8601String() ?? "",
+            state.dob?.toIso8601String(),
             state.address,
             state.city,
             state.selectedState,
             state.pin,
             state.profileImageUrl,
             state.role,
-            if (isCashier) state.mart,
-            if (isCashier) state.counterNumber,
+            state.mart,
+            state.counterNumber,
           ].every((val) => val != null && val.toString().trim().isNotEmpty);
+        }
+        if (role == "customer") {
+          return [
+            state.fullName,
+            state.phoneNumber,
+            state.gender,
+            state.dob?.toIso8601String(),
+            state.address,
+            state.city,
+            state.selectedState,
+            state.pin,
+            state.profileImageUrl,
+            state.role,
+            // ✅ Removed `mart` from here for customer
+          ].every((val) => val != null && val.toString().trim().isNotEmpty);
+        }
+
+        return false;
+      }();
 
       updatedProfileData["isProfileComplete"] = isComplete;
 
