@@ -33,37 +33,43 @@ final profileImageProvider = FutureProvider<Uint8List?>((ref) async {
 /// 📉 StateProvider to track selected mart
 final selectedMartProvider = StateProvider<String?>((ref) => null);
 
+/// 🗺️ Provider to store mapping of martName -> admin UID
+final adminMartMapProvider = StateProvider<Map<String, String>>((ref) => {});
+
 /// 👨‍🎓 AsyncProvider to fetch mart names from admin role
 final adminMartsProvider = FutureProvider<List<String>>((ref) async {
   try {
-    debugPrint("\ud83d\udd0d Fetching admin marts...");
+    debugPrint("🔍 Fetching admin marts...");
 
     final querySnapshot =
         await FirebaseFirestore.instance.collection("users").get();
-    debugPrint(
-      "\ud83d\udcc4 Total Users Fetched: \${querySnapshot.docs.length}",
-    );
+    debugPrint("📄 Total Users Fetched: ${querySnapshot.docs.length}");
 
     final List<String> marts = [];
+    final Map<String, String> martMap = {};
+
     for (var doc in querySnapshot.docs) {
       final data = doc.data();
       final role = data["role"];
       final martName = data["martName"];
 
-      debugPrint("-- Role: \$role, Mart: \$martName");
+      debugPrint("-- Role: $role, Mart: $martName");
 
       if (role != null &&
           role.toString().toLowerCase() == "admin" &&
           martName != null &&
           martName.toString().trim().isNotEmpty) {
-        marts.add(martName.toString().trim());
+        final name = martName.toString().trim();
+        marts.add(name);
+        martMap[name] = doc.id; // UID mapping
       }
     }
 
-    debugPrint("\u2705 Final Mart List: \$marts");
+    ref.read(adminMartMapProvider.notifier).state = martMap;
+    debugPrint("✅ Final Mart List: $marts");
     return marts;
   } catch (e) {
-    debugPrint("\u274c Error fetching admin marts: $e");
+    debugPrint("❌ Error fetching admin marts: $e");
     return [];
   }
 });

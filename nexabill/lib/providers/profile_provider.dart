@@ -614,38 +614,6 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     );
   }
 
-  // bool _calculateProfileCompletion(ProfileState s) {
-  //   final role = s.role.toLowerCase();
-  //   final basicFields = [
-  //     s.fullName,
-  //     s.phoneNumber,
-  //     s.gender,
-  //     s.dob?.toIso8601String() ?? "",
-  //     s.address,
-  //     s.city,
-  //     s.selectedState,
-  //     s.pin,
-  //     s.profileImageUrl,
-  //     s.role,
-  //   ];
-
-  //   final isBasicComplete = basicFields.every(
-  //     (val) => val.toString().trim().isNotEmpty,
-  //   );
-
-  //   if (!isBasicComplete) return false;
-
-  //   if (role == "cashier") {
-  //     return s.mart.trim().isNotEmpty && s.counterNumber.trim().isNotEmpty;
-  //   } else if (role == "customer") {
-  //     return s.mart.trim().isNotEmpty;
-  //   } else if (role == "admin") {
-  //     return true;
-  //   }
-
-  //   return false;
-  // }
-
   bool _calculateProfileCompletion(ProfileState s) {
     final role = s.role.toLowerCase();
     final basicFields = [
