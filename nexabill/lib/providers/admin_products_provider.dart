@@ -220,55 +220,6 @@ $_martName Price: ₹${calculateDiscountedPrice()}
     }
   }
 
-  // Future<void> downloadQrCard(GlobalKey globalKey, BuildContext context) async {
-  //   try {
-  //     final hasPermission = await _requestStoragePermission();
-  //     if (!hasPermission) {
-  //       debugPrint("❌ Storage permission not granted");
-  //       return;
-  //     }
-
-  //     final boundary =
-  //         globalKey.currentContext?.findRenderObject()
-  //             as RenderRepaintBoundary?;
-  //     if (boundary == null) {
-  //       debugPrint("❌ RepaintBoundary not found");
-  //       return;
-  //     }
-
-  //     if (boundary.debugNeedsPaint) {
-  //       await Future.delayed(const Duration(milliseconds: 300));
-  //     }
-
-  //     final image = await boundary.toImage(pixelRatio: 3.0);
-  //     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-  //     final pngBytes = byteData?.buffer.asUint8List();
-
-  //     if (pngBytes == null) {
-  //       debugPrint("❌ PNG bytes were null");
-  //       return;
-  //     }
-
-  //     final result = await SaverGallery.saveImage(
-  //       pngBytes,
-  //       quality: 100,
-  //       fileName: "product_qr_${DateTime.now().millisecondsSinceEpoch}",
-  //       androidRelativePath: "Pictures/NexaBill/Products",
-  //       skipIfExists: false,
-  //     );
-
-  //     debugPrint("✅ Saved using saver_gallery: $result");
-
-  //     if (context.mounted) {
-  //       ScaffoldMessenger.of(
-  //         context,
-  //       ).showSnackBar(const SnackBar(content: Text("✅ QR saved to Gallery")));
-  //     }
-  //   } catch (e) {
-  //     debugPrint("❌ Download QR failed: $e");
-  //   }
-  // }
-
   Future<void> downloadQrCard(GlobalKey globalKey, BuildContext context) async {
     try {
       final hasPermission = await _requestStoragePermission();

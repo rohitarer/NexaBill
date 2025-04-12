@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// 👍 Provider to load profile image from Firestore (base64 -> Uint8List)
+/// 🖼️ Loads profile image as Uint8List (base64 → image)
 final profileImageProvider = FutureProvider<Uint8List?>((ref) async {
   try {
     final user = FirebaseAuth.instance.currentUser;
@@ -25,18 +25,18 @@ final profileImageProvider = FutureProvider<Uint8List?>((ref) async {
     final padded = base64String.padRight((base64String.length + 3) & ~3, '=');
     return base64Decode(padded);
   } catch (e) {
-    debugPrint("\u274c Error in profileImageProvider: $e");
+    debugPrint("❌ Error in profileImageProvider: $e");
     return null;
   }
 });
 
-/// 📉 StateProvider to track selected mart
+/// 📉 Stores selected mart from dropdown
 final selectedMartProvider = StateProvider<String?>((ref) => null);
 
-/// 🗺️ Provider to store mapping of martName -> admin UID
+/// 📌 Map of martName → admin UID (used across QR scan, bill fetch etc.)
 final adminMartMapProvider = StateProvider<Map<String, String>>((ref) => {});
 
-/// 👨‍🎓 AsyncProvider to fetch mart names from admin role
+/// 🔄 Loads admin marts and builds the mart-to-adminUID map
 final adminMartsProvider = FutureProvider<List<String>>((ref) async {
   try {
     debugPrint("🔍 Fetching admin marts...");
@@ -61,7 +61,7 @@ final adminMartsProvider = FutureProvider<List<String>>((ref) async {
           martName.toString().trim().isNotEmpty) {
         final name = martName.toString().trim();
         marts.add(name);
-        martMap[name] = doc.id; // UID mapping
+        martMap[name] = doc.id;
       }
     }
 
@@ -81,6 +81,7 @@ final adminMartsProvider = FutureProvider<List<String>>((ref) async {
 // import 'package:firebase_auth/firebase_auth.dart';
 // import 'package:cloud_firestore/cloud_firestore.dart';
 
+// /// 👍 Provider to load profile image from Firestore (base64 -> Uint8List)
 // final profileImageProvider = FutureProvider<Uint8List?>((ref) async {
 //   try {
 //     final user = FirebaseAuth.instance.currentUser;
@@ -94,18 +95,57 @@ final adminMartsProvider = FutureProvider<List<String>>((ref) async {
 
 //     if (!doc.exists) return null;
 
-//     final base64String = doc["profileImageUrl"] as String?;
+//     final base64String = doc.data()?["profileImageUrl"] as String?;
 //     if (base64String == null || base64String.isEmpty) return null;
 
-//     // ✅ Fix base64 padding safely
 //     final padded = base64String.padRight((base64String.length + 3) & ~3, '=');
-
 //     return base64Decode(padded);
 //   } catch (e) {
-//     debugPrint("❌ Error in profileImageProvider: $e");
+//     debugPrint("\u274c Error in profileImageProvider: $e");
 //     return null;
 //   }
 // });
 
-// /// **📌 StateProvider to Manage Selected Mart**
+// /// 📉 StateProvider to track selected mart
 // final selectedMartProvider = StateProvider<String?>((ref) => null);
+
+// /// 🗺️ Provider to store mapping of martName -> admin UID
+// final adminMartMapProvider = StateProvider<Map<String, String>>((ref) => {});
+
+// /// 👨‍🎓 AsyncProvider to fetch mart names from admin role
+// final adminMartsProvider = FutureProvider<List<String>>((ref) async {
+//   try {
+//     debugPrint("🔍 Fetching admin marts...");
+
+//     final querySnapshot =
+//         await FirebaseFirestore.instance.collection("users").get();
+//     debugPrint("📄 Total Users Fetched: ${querySnapshot.docs.length}");
+
+//     final List<String> marts = [];
+//     final Map<String, String> martMap = {};
+
+//     for (var doc in querySnapshot.docs) {
+//       final data = doc.data();
+//       final role = data["role"];
+//       final martName = data["martName"];
+
+//       debugPrint("-- Role: $role, Mart: $martName");
+
+//       if (role != null &&
+//           role.toString().toLowerCase() == "admin" &&
+//           martName != null &&
+//           martName.toString().trim().isNotEmpty) {
+//         final name = martName.toString().trim();
+//         marts.add(name);
+//         martMap[name] = doc.id; // UID mapping
+//       }
+//     }
+
+//     ref.read(adminMartMapProvider.notifier).state = martMap;
+//     debugPrint("✅ Final Mart List: $marts");
+//     return marts;
+//   } catch (e) {
+//     debugPrint("❌ Error fetching admin marts: $e");
+//     return [];
+//   }
+// });

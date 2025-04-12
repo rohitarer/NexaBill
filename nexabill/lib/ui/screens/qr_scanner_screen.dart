@@ -1,16 +1,20 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:nexabill/core/theme.dart';
+import 'package:nexabill/providers/customer_home_provider.dart';
+import 'customer_home_screen.dart';
 
-class QRScannerScreen extends StatefulWidget {
+class QRScannerScreen extends ConsumerStatefulWidget {
   const QRScannerScreen({super.key});
 
   @override
-  State<QRScannerScreen> createState() => _QRScannerScreenState();
+  ConsumerState<QRScannerScreen> createState() => _QRScannerScreenState();
 }
 
-class _QRScannerScreenState extends State<QRScannerScreen> {
+class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? controller;
   String? scannedCode;
@@ -29,9 +33,9 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
   void _onQRViewCreated(QRViewController controller) {
     this.controller = controller;
     controller.scannedDataStream.listen((scanData) {
-      if (scannedCode != scanData.code) {
+      if (scannedCode != scanData.code && scanData.code != null) {
         setState(() {
-          scannedCode = scanData.code;
+          scannedCode = scanData.code!;
           quantity = 1;
         });
         controller.pauseCamera();
@@ -44,9 +48,144 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       quantity--;
       if (quantity < 1) {
         scannedCode = null;
-        controller?.resumeCamera(); // ✅ Restart scanner
+        controller?.resumeCamera();
       }
     });
+  }
+
+  // Future<void> _handleAccept() async {
+  //   if (scannedCode == null || quantity < 1) return;
+
+  //   // 🧠 Parse multi-line QR data
+  //   final lines = scannedCode!.split('\n').map((e) => e.trim()).toList();
+  //   final nameLine = lines.firstWhere(
+  //     (l) => l.startsWith("Product:"),
+  //     orElse: () => "",
+  //   );
+  //   final productName = nameLine.replaceFirst("Product:", "").trim();
+
+  //   if (productName.isEmpty) {
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(const SnackBar(content: Text("❌ Invalid QR code format")));
+  //     controller?.resumeCamera();
+  //     return;
+  //   }
+
+  //   final adminUid = ref.read(selectedAdminUidProvider);
+  //   if (adminUid == null) return;
+
+  //   try {
+  //     final adminDoc =
+  //         await FirebaseFirestore.instance
+  //             .collection("users")
+  //             .doc(adminUid)
+  //             .get();
+
+  //     final productList =
+  //         adminDoc.data()?["productList"] as Map<String, dynamic>?;
+
+  //     if (productList == null || !productList.containsKey(productName)) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text("❌ Product '$productName' not found.")),
+  //       );
+  //       controller?.resumeCamera();
+  //       return;
+  //     }
+
+  //     final product = productList[productName];
+  //     final productItem = {
+  //       "serial": ref.read(scannedProductsProvider).length + 1,
+  //       "name": product["name"] ?? "",
+  //       "price": double.tryParse(product["price"] ?? "0") ?? 0.0,
+  //       "quantity": quantity,
+  //       "gst": product["gst"] ?? "0%",
+  //       "discount": product["discount"] ?? "0%",
+  //     };
+
+  //     final updatedList = [...ref.read(scannedProductsProvider), productItem];
+  //     ref.read(scannedProductsProvider.notifier).state = updatedList;
+
+  //     Navigator.pop(context); // ✅ Close scanner
+  //   } catch (e) {
+  //     print("❌ Error scanning product: $e");
+  //   }
+  // }
+
+  Future<void> _handleAccept() async {
+    if (scannedCode == null || quantity < 1) return;
+
+    // 🧠 Parse QR multi-line
+    final lines = scannedCode!.split('\n').map((e) => e.trim()).toList();
+
+    final nameLine = lines.firstWhere(
+      (l) => l.startsWith("Product:"),
+      orElse: () => "",
+    );
+    final smartPriceLine = lines.firstWhere(
+      (l) => l.contains("SMart Price: ₹"),
+      orElse: () => "",
+    );
+
+    final productName = nameLine.replaceFirst("Product:", "").trim();
+
+    // ✅ Extract SMart Price from QR string
+    final martPriceMatch = RegExp(
+      r'SMart Price: ₹(\d+(\.\d+)?)',
+    ).firstMatch(smartPriceLine);
+    final martPrice = double.tryParse(martPriceMatch?.group(1) ?? "0") ?? 0.0;
+
+    if (productName.isEmpty || martPrice == 0.0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("❌ Invalid QR code format or SMart Price missing"),
+        ),
+      );
+      controller?.resumeCamera();
+      return;
+    }
+
+    final adminUid = ref.read(selectedAdminUidProvider);
+    if (adminUid == null) return;
+
+    try {
+      final adminDoc =
+          await FirebaseFirestore.instance
+              .collection("users")
+              .doc(adminUid)
+              .get();
+
+      final productList =
+          adminDoc.data()?["productList"] as Map<String, dynamic>?;
+
+      if (productList == null || !productList.containsKey(productName)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Product '$productName' not found.")),
+        );
+        controller?.resumeCamera();
+        return;
+      }
+
+      final product = productList[productName];
+
+      final productItem = {
+        "serial": ref.read(scannedProductsProvider).length + 1,
+        "name": product["name"] ?? "",
+        "price":
+            double.tryParse(product["price"] ?? "0") ?? 0.0, // ✅ unit price
+        "quantity": quantity,
+        "gst": product["gst"] ?? "0%",
+        "discount": product["discount"] ?? "0%",
+        "finalPrice": martPrice, // ✅ discounted price per unit
+      };
+
+      final updatedList = [...ref.read(scannedProductsProvider), productItem];
+      ref.read(scannedProductsProvider.notifier).state = updatedList;
+
+      Navigator.pop(context); // ✅ Close scanner
+    } catch (e) {
+      print("❌ Error scanning product: $e");
+    }
   }
 
   Widget buildQuantityBox() {
@@ -69,7 +208,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // 🔵 Primary container with full row (+ | quantity | -)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
             decoration: BoxDecoration(
@@ -97,8 +235,6 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
               ],
             ),
           ),
-
-          // ✅ Accept and ❌ Cancel
           Row(
             children: [
               const SizedBox(width: 20),
@@ -106,10 +242,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                 backgroundColor: Colors.green.shade600,
                 child: IconButton(
                   icon: const Icon(Icons.check, color: Colors.white),
-                  onPressed: () {
-                    // ✅ Accept logic
-                    Navigator.pop(context);
-                  },
+                  onPressed: _handleAccept,
                 ),
               ),
               const SizedBox(width: 10),
@@ -117,9 +250,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
                 backgroundColor: Colors.redAccent,
                 child: IconButton(
                   icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                 ),
               ),
             ],

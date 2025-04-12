@@ -354,87 +354,151 @@ class _BillContainerState extends ConsumerState<BillContainer> {
   Widget _buildProductList(bool isDarkMode) => Column(
     children:
         widget.billItems.map((item) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          final serial = item["serial"] ?? 0;
+          final name = item["name"] ?? "";
+          final qty = item["quantity"] ?? 1;
+          final price = item["price"] ?? 0.0;
+          final gst = item["gst"] ?? "0%";
+          final discount = item["discount"] ?? "0%";
+          final finalPrice = item["finalPrice"] ?? price;
+
+          final total = (finalPrice as double) * (qty as int);
+
+          return Dismissible(
+            key: ValueKey("$serial-$name"),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              color: Colors.redAccent,
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            onDismissed: (_) {
+              setState(() {
+                widget.billItems.remove(item);
+
+                // Reassign serials after removal
+                for (int i = 0; i < widget.billItems.length; i++) {
+                  widget.billItems[i]["serial"] = i + 1;
+                }
+
+                // Optional: update scannedProductsProvider if needed
+                ref.read(scannedProductsProvider.notifier).state = [
+                  ...widget.billItems,
+                ];
+              });
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("🗑️ '$name' removed from bill")),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "${item["serial"]}. ${item["name"]}",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: isDarkMode ? Colors.white : Colors.black,
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          "$serial. $name",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: isDarkMode ? Colors.white : Colors.black,
+                          ),
                         ),
                       ),
                       Text(
-                        "Qty: ${item["quantity"]} | Price/unit: ₹${item["price"]} | GST: ${item["gst"]} | Discount: ${item["discount"]}",
+                        "₹${total.toStringAsFixed(2)}",
                         style: TextStyle(
-                          fontSize: 14,
-                          color: isDarkMode ? Colors.white70 : Colors.black54,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[700],
                         ),
                       ),
                     ],
                   ),
-                ),
-                Expanded(
-                  child: Text(
-                    "₹${(item["price"] as double) * (item["quantity"] as int)}",
-                    textAlign: TextAlign.right,
+                  const SizedBox(height: 2),
+                  Text(
+                    "Qty: $qty | Price/unit: ₹$price | GST: $gst | Discount: $discount",
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[700],
+                      fontSize: 14,
+                      color: isDarkMode ? Colors.white70 : Colors.black54,
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         }).toList(),
   );
 
-  Widget _buildBillSummary(bool isDarkMode) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _billSummaryRow("Total Items:", "${BillData.getTotalQuantity()}"),
-      _billSummaryRow(
-        "Total Amount:",
-        "₹${BillData.getTotalAmount().toStringAsFixed(2)}",
-        isBold: true,
-      ),
-      _billSummaryRow(
-        "GST (5%):",
-        "₹${BillData.getTotalGST().toStringAsFixed(2)}",
-      ),
-      _billSummaryRow(
-        "Net Amount Due:",
-        "₹${BillData.getNetAmountDue().toStringAsFixed(2)}",
-        isBold: true,
-      ),
-    ],
-  );
+  Widget _buildBillSummary(bool isDarkMode) {
+    final scannedItems = widget.billItems;
 
-  Widget _buildPaymentDetails(bool isDarkMode) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _billSummaryRow(
-        "Amount Paid:",
-        "₹${BillData.amountPaid.toStringAsFixed(2)}",
-        isBold: true,
-      ),
-      _billSummaryRow(
-        "Balance Amount:",
-        "₹${BillData.getBalanceAmount().toStringAsFixed(2)}",
-        isBold: true,
-      ),
-    ],
-  );
+    double totalFinalAmount = 0.0;
+    int totalQuantity = 0;
+
+    for (var item in scannedItems) {
+      final price = item["finalPrice"] ?? item["price"] ?? 0.0;
+      final quantity = item["quantity"] ?? 1;
+      totalFinalAmount += (price as double) * (quantity as int);
+      totalQuantity += quantity as int;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _billSummaryRow("Total Items:", "$totalQuantity"),
+        _billSummaryRow(
+          "Total Amount:",
+          "₹${totalFinalAmount.toStringAsFixed(2)}",
+          isBold: true,
+        ),
+        // _billSummaryRow(
+        //   "GST:",
+        //   "₹${BillData.getTotalGST().toStringAsFixed(2)}",
+        // ),
+        _billSummaryRow(
+          "Net Amount Due:",
+          "₹${totalFinalAmount.toStringAsFixed(2)}",
+          isBold: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentDetails(bool isDarkMode) {
+    final scannedItems = widget.billItems;
+
+    double totalFinalAmount = 0.0;
+    for (var item in scannedItems) {
+      final price = item["finalPrice"] ?? item["price"] ?? 0.0;
+      final quantity = item["quantity"] ?? 1;
+      totalFinalAmount += (price as double) * (quantity as int);
+    }
+
+    final balance = totalFinalAmount - BillData.amountPaid;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _billSummaryRow(
+          "Amount Paid:",
+          "₹${BillData.amountPaid.toStringAsFixed(2)}",
+          isBold: true,
+        ),
+        _billSummaryRow(
+          "Balance Amount:",
+          "₹${balance.toStringAsFixed(2)}",
+          isBold: true,
+        ),
+      ],
+    );
+  }
 
   Widget _buildFooterQuote(bool isDarkMode) => Center(
     child: Column(
@@ -494,6 +558,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 // import 'package:nexabill/providers/bill_verification_provider.dart';
 // import 'package:nexabill/providers/customer_home_provider.dart';
 // import 'package:nexabill/providers/profile_provider.dart';
+// import 'package:nexabill/ui/screens/customer_home_screen.dart';
 // import 'package:nexabill/ui/widgets/verification_stamp.dart';
 
 // class BillContainer extends ConsumerStatefulWidget {
@@ -520,11 +585,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 //       print("🚀 Starting bill data load...");
 
 //       final customerProfile = await ref.read(profileFutureProvider.future);
-//       final adminUidAsync = ref.watch(selectedAdminUidProvider);
-
-//       // ✅ If selectedAdminUidProvider is an AsyncValue<String?>
-//       final adminUid = adminUidAsync.asData?.value;
-//       print("🆗 selectedAdminUidProvider resolved: $adminUid");
+//       final adminUid = ref.read(selectedAdminUidProvider) as String?;
 
 //       print("🔐 Admin UID: $adminUid");
 //       print("👤 Customer Profile: $customerProfile");
@@ -548,12 +609,11 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 //         return;
 //       }
 
-//       // ✅ Customer Info
+//       // ✅ Fill bill data
 //       BillData.customerName = customerProfile["fullName"] ?? "";
 //       BillData.customerMobile = customerProfile["phoneNumber"] ?? "";
-//       BillData.cashier = ""; // blank
+//       BillData.cashier = "";
 
-//       // ✅ Admin Mart Info
 //       final martAddress = adminProfile["martAddress"] ?? "";
 //       final martState = adminProfile["martState"] ?? "";
 //       BillData.martName = adminProfile["martName"] ?? "";
@@ -562,15 +622,11 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 //       BillData.martGSTIN = adminProfile["martGstin"] ?? "";
 //       BillData.martCIN = adminProfile["martCin"] ?? "";
 
-//       // ✅ Date & Session
 //       final now = DateTime.now();
 //       BillData.billDate = DateFormat('dd-MM-yyyy').format(now);
 //       BillData.session = DateFormat('hh:mm a').format(now);
-
-//       // ✅ Static Counter No
 //       BillData.counterNo = "Counter No:";
 
-//       // ✅ Generate bill number
 //       final billSnap =
 //           await FirebaseFirestore.instance
 //               .collection("bills")
@@ -578,10 +634,12 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 //               .collection("all_bills")
 //               .get();
 
-//       final nextNo = billSnap.docs.length + 1;
-//       BillData.billNo = "BILL#$nextNo";
+//       BillData.billNo = "BILL#${billSnap.docs.length + 1}";
 
 //       print("✅ Bill generated: ${BillData.billNo}");
+
+//       // 🔄 Rebuild
+//       if (mounted) setState(() {});
 //     } catch (e, st) {
 //       print("❌ Error in _loadBillData: $e");
 //       print("📍 StackTrace: $st");
@@ -794,9 +852,19 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 //   }
 
 //   Widget _buildCustomerDetails() {
-//     // Parse the session time into DateTime
-//     final time = DateFormat('hh:mm a').parse(BillData.session);
-//     final hour = time.hour;
+//     // Safely parse the session time
+//     int hour;
+//     try {
+//       if (BillData.session.isNotEmpty) {
+//         final time = DateFormat('hh:mm a').parse(BillData.session);
+//         hour = time.hour;
+//       } else {
+//         hour = DateTime.now().hour;
+//       }
+//     } catch (e) {
+//       debugPrint("❌ Error parsing BillData.session: $e");
+//       hour = DateTime.now().hour; // fallback
+//     }
 
 //     String sessionLabel;
 //     if (hour >= 5 && hour < 12) {
@@ -822,13 +890,10 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 //         ),
 //         const SizedBox(height: 5),
 //         Text(
-//           "${BillData.customerName}",
+//           BillData.customerName,
 //           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
 //         ),
-//         Text(
-//           "${BillData.customerMobile}",
-//           style: const TextStyle(fontSize: 15),
-//         ),
+//         Text(BillData.customerMobile, style: const TextStyle(fontSize: 15)),
 //         const SizedBox(height: 5),
 //         const Text(
 //           "Cashier:",
