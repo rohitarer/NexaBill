@@ -5,8 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nexabill/data/bill_data.dart';
 import 'package:nexabill/providers/bill_verification_provider.dart';
 import 'package:nexabill/providers/customer_home_provider.dart';
+import 'package:nexabill/providers/otp_provider.dart';
 import 'package:nexabill/providers/profile_provider.dart';
 import 'package:nexabill/ui/screens/customer_home_screen.dart';
+import 'package:nexabill/ui/widgets/bill_otp_handler.dart';
 import 'package:nexabill/ui/widgets/verification_stamp.dart';
 
 class BillContainer extends ConsumerStatefulWidget {
@@ -27,8 +29,30 @@ class BillContainer extends ConsumerStatefulWidget {
 
 class _BillContainerState extends ConsumerState<BillContainer> {
   bool _initialized = false;
+  String? _billOtp;
+  bool _paymentVerified = false;
+  // bool _newOtpReceived = false;
+  bool _waitingForOtp = false;
 
-  Future<void> _loadBillData(WidgetRef ref) async {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() async {
+      _resetPaymentState();
+      await _loadBillData();
+    });
+  }
+
+  void _resetPaymentState() {
+    BillData.amountPaid = 0.0;
+    _billOtp = null;
+    _paymentVerified = false;
+    _waitingForOtp = true;
+    if (mounted) setState(() {});
+  }
+
+  // Future<void> _loadBillData(WidgetRef ref) async {
+  Future<void> _loadBillData() async {
     try {
       print("🚀 Starting bill data load...");
 
@@ -86,7 +110,8 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 
       print("✅ Bill generated: ${BillData.billNo}");
 
-      // 🔄 Rebuild
+      /// Now fetch OTP separately after frame render
+      // _startOtpPolling();
       if (mounted) setState(() {});
     } catch (e, st) {
       print("❌ Error in _loadBillData: $e");
@@ -94,33 +119,58 @@ class _BillContainerState extends ConsumerState<BillContainer> {
     }
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_initialized) {
-      _initialized = true;
-      _loadBillData(ref);
-    }
-  }
+  // This function should be called from outside (e.g. after payment success)
+  // void startOtpPollingAfterPayment() {
+  //   _waitingForOtp = true;
+  //   if (mounted) setState(() {});
+  //   _pollForOtpUntilAvailable(clearPrevious: false);
+  // }
 
-  Future<void> waitForAdminUidAndLoad(WidgetRef ref) async {
-    int retries = 0;
-    while (retries < 6) {
-      final adminUid = ref.read(selectedAdminUidProvider);
-      print("⏳ Waiting for admin UID... Attempt $retries: $adminUid");
+  // Future<void> _pollForOtpUntilAvailable({bool clearPrevious = false}) async {
+  //   debugPrint("📡 Polling for OTP after payment...");
+  //   if (clearPrevious) _resetPaymentState();
 
-      if (adminUid != null) {
-        print("✅ Admin UID available: $adminUid");
-        await _loadBillData(ref);
-        return;
-      }
+  //   const maxTries = 8;
+  //   const delay = Duration(milliseconds: 400);
 
-      await Future.delayed(const Duration(milliseconds: 300));
-      retries++;
-    }
+  //   for (int i = 0; i < maxTries; i++) {
+  //     final doc =
+  //         await FirebaseFirestore.instance
+  //             .collection("otps")
+  //             .doc(BillData.billNo)
+  //             .get();
+  //     if (doc.exists) {
+  //       final data = doc.data();
+  //       final otp = data?["otp"]?.toString();
+  //       final amount = double.tryParse("\\${data?["amountPaid"] ?? "0.0"}");
 
-    print("❌ Admin UID still null after retries.");
-  }
+  //       if (otp != null && otp.length == 6) {
+  //         if (_billOtp != otp) {
+  //           _billOtp = otp;
+  //           BillData.amountPaid = amount ?? 0.0;
+  //           _paymentVerified = true;
+  //           _newOtpReceived = true;
+  //           _waitingForOtp = false;
+  //           debugPrint("✅ OTP updated: \$_billOtp");
+  //           if (mounted) setState(() {});
+  //         }
+  //         return;
+  //       }
+  //     }
+  //     debugPrint("⏳ Waiting for OTP... Try \$i");
+  //     await Future.delayed(delay);
+  //   }
+  //   _waitingForOtp = false;
+  // }
+
+  // @override
+  // void didChangeDependencies() {
+  //   super.didChangeDependencies();
+  //   if (!_initialized) {
+  //     _initialized = true;
+  //     _loadBillData(ref);
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -180,6 +230,8 @@ class _BillContainerState extends ConsumerState<BillContainer> {
                             _buildBillSummary(isDarkMode),
                             const Divider(thickness: 1.5),
                             _buildPaymentDetails(isDarkMode),
+                            const Divider(thickness: 1.5),
+                            // _buildVerificationCode(isDarkMode),
                             const Divider(thickness: 1.5),
                             _buildFooterQuote(isDarkMode),
                             const SizedBox(height: 40),
@@ -471,17 +523,27 @@ class _BillContainerState extends ConsumerState<BillContainer> {
     );
   }
 
+  // Widget _buildVerificationCode() {
+  //   debugPrint("👁️ Building Verification Code UI: \$_billOtp");
+  //   if (_waitingForOtp) {
+  //     return const Text("⏳ Waiting for verification code...");
+  //   } else if (_paymentVerified && _billOtp != null && _newOtpReceived) {
+  //     return Text("Verification Code: \$_billOtp");
+  //   }
+  //   return const SizedBox.shrink();
+  // }
+
   Widget _buildPaymentDetails(bool isDarkMode) {
-    final scannedItems = widget.billItems;
-
-    double totalFinalAmount = 0.0;
-    for (var item in scannedItems) {
-      final price = item["finalPrice"] ?? item["price"] ?? 0.0;
-      final quantity = item["quantity"] ?? 1;
-      totalFinalAmount += (price as double) * (quantity as int);
-    }
-
-    final balance = totalFinalAmount - BillData.amountPaid;
+    debugPrint("💰 Building Payment Details");
+    double total = widget.billItems.fold(0, (sum, item) {
+      final p = item["finalPrice"] ?? item["price"] ?? 0.0;
+      final q = item["quantity"] ?? 1;
+      return sum + (p as double) * (q as int);
+    });
+    final balance = total - BillData.amountPaid;
+    debugPrint("🔢 Total: ₹$total");
+    debugPrint("💳 Paid: ₹${BillData.amountPaid}");
+    debugPrint("🧾 Balance: ₹$balance");
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,6 +557,17 @@ class _BillContainerState extends ConsumerState<BillContainer> {
           "Balance Amount:",
           "₹${balance.toStringAsFixed(2)}",
           isBold: true,
+        ),
+        OtpHandler(
+          billNo: BillData.billNo,
+          onOtpReceived: (otp, amount) {
+            setState(() {
+              _billOtp = otp;
+              BillData.amountPaid = amount;
+              _paymentVerified = true;
+              _waitingForOtp = false;
+            });
+          },
         ),
       ],
     );
@@ -536,12 +609,16 @@ class _BillContainerState extends ConsumerState<BillContainer> {
             label,
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              color: isBold ? Colors.green[800] : null,
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                color: isBold ? Colors.green[800] : null,
+              ),
             ),
           ),
         ],
@@ -550,6 +627,10 @@ class _BillContainerState extends ConsumerState<BillContainer> {
   }
 }
 
+
+
+
+
 // import 'package:flutter/material.dart';
 // import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:intl/intl.dart';
@@ -557,6 +638,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 // import 'package:nexabill/data/bill_data.dart';
 // import 'package:nexabill/providers/bill_verification_provider.dart';
 // import 'package:nexabill/providers/customer_home_provider.dart';
+// import 'package:nexabill/providers/otp_provider.dart';
 // import 'package:nexabill/providers/profile_provider.dart';
 // import 'package:nexabill/ui/screens/customer_home_screen.dart';
 // import 'package:nexabill/ui/widgets/verification_stamp.dart';
@@ -579,8 +661,37 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 
 // class _BillContainerState extends ConsumerState<BillContainer> {
 //   bool _initialized = false;
+//   String? _billOtp;
+//   bool _paymentVerified = false;
 
-//   Future<void> _loadBillData(WidgetRef ref) async {
+//   @override
+//   void initState() {
+//     super.initState();
+//     Future.microtask(() async {
+//       _resetPaymentState();
+//       await _loadBillData();
+//       // await _fetchOtpAndAmount();
+//     });
+//   }
+
+//   @override
+//   void didUpdateWidget(covariant BillContainer oldWidget) {
+//     super.didUpdateWidget(oldWidget);
+//     ref.listenManual(otpRefreshProvider, (prev, next) async {
+//       await _fetchOtpAndAmount(force: true);
+//       // if (mounted) setState(() {});
+//     });
+//   }
+
+//   void _resetPaymentState() {
+//     BillData.amountPaid = 0.0;
+//     _billOtp = null;
+//     _paymentVerified = false;
+//     if (mounted) setState(() {});
+//   }
+
+//   // Future<void> _loadBillData(WidgetRef ref) async {
+//   Future<void> _loadBillData() async {
 //     try {
 //       print("🚀 Starting bill data load...");
 
@@ -637,8 +748,11 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 //       BillData.billNo = "BILL#${billSnap.docs.length + 1}";
 
 //       print("✅ Bill generated: ${BillData.billNo}");
+//       // _resetPaymentState();
+//       // await Future.delayed(const Duration(milliseconds: 300));
+//       await _fetchOtpAndAmount(force: true);
 
-//       // 🔄 Rebuild
+//       // // 🔄 Rebuild
 //       if (mounted) setState(() {});
 //     } catch (e, st) {
 //       print("❌ Error in _loadBillData: $e");
@@ -646,33 +760,68 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 //     }
 //   }
 
-//   @override
-//   void didChangeDependencies() {
-//     super.didChangeDependencies();
-//     if (!_initialized) {
-//       _initialized = true;
-//       _loadBillData(ref);
-//     }
-//   }
+//   // Future<void> _fetchOtpAndAmount({bool force = false}) async {
+//   //   try {
+//   //     final otpDoc =
+//   //         await FirebaseFirestore.instance
+//   //             .collection("otps")
+//   //             .doc(BillData.billNo)
+//   //             .get();
+//   //     if (otpDoc.exists) {
+//   //       final data = otpDoc.data();
+//   //       final amount = data?["amountPaid"];
+//   //       final otp = data?["otp"];
 
-//   Future<void> waitForAdminUidAndLoad(WidgetRef ref) async {
-//     int retries = 0;
-//     while (retries < 6) {
-//       final adminUid = ref.read(selectedAdminUidProvider);
-//       print("⏳ Waiting for admin UID... Attempt $retries: $adminUid");
+//   //       if (amount != null)
+//   //         BillData.amountPaid = double.tryParse("$amount") ?? 0.0;
 
-//       if (adminUid != null) {
-//         print("✅ Admin UID available: $adminUid");
-//         await _loadBillData(ref);
-//         return;
+//   //       final newOtp = (otp != null && "$otp".length == 6) ? "$otp" : null;
+//   //       if (force || newOtp != _billOtp) {
+//   //         _billOtp = newOtp;
+//   //         _paymentVerified = newOtp != null;
+//   //         if (mounted) setState(() {});
+//   //       }
+//   //     } else {
+//   //       _resetPaymentState();
+//   //       if (mounted) setState(() {});
+//   //     }
+//   //   } catch (_) {}
+//   // }
+
+//   Future<void> _fetchOtpAndAmount({bool force = false}) async {
+//     try {
+//       final otpDoc =
+//           await FirebaseFirestore.instance
+//               .collection("otps")
+//               .doc(BillData.billNo)
+//               .get();
+//       if (otpDoc.exists) {
+//         final data = otpDoc.data();
+//         final amount = data?["amountPaid"];
+//         final otp = data?["otp"];
+
+//         if (amount != null)
+//           BillData.amountPaid = double.tryParse("$amount") ?? 0.0;
+
+//         final newOtp = (otp != null && "$otp".length == 6) ? "$otp" : null;
+//         _billOtp = newOtp;
+//         _paymentVerified = newOtp != null;
+
+//         if (mounted) setState(() {});
+//       } else {
+//         _resetPaymentState();
 //       }
-
-//       await Future.delayed(const Duration(milliseconds: 300));
-//       retries++;
-//     }
-
-//     print("❌ Admin UID still null after retries.");
+//     } catch (_) {}
 //   }
+
+//   // @override
+//   // void didChangeDependencies() {
+//   //   super.didChangeDependencies();
+//   //   if (!_initialized) {
+//   //     _initialized = true;
+//   //     _loadBillData(ref);
+//   //   }
+//   // }
 
 //   @override
 //   Widget build(BuildContext context) {
@@ -906,87 +1055,141 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 //   Widget _buildProductList(bool isDarkMode) => Column(
 //     children:
 //         widget.billItems.map((item) {
-//           return Padding(
-//             padding: const EdgeInsets.symmetric(vertical: 6),
-//             child: Row(
-//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//               children: [
-//                 Expanded(
-//                   flex: 2,
-//                   child: Column(
-//                     crossAxisAlignment: CrossAxisAlignment.start,
+//           final serial = item["serial"] ?? 0;
+//           final name = item["name"] ?? "";
+//           final qty = item["quantity"] ?? 1;
+//           final price = item["price"] ?? 0.0;
+//           final gst = item["gst"] ?? "0%";
+//           final discount = item["discount"] ?? "0%";
+//           final finalPrice = item["finalPrice"] ?? price;
+
+//           final total = (finalPrice as double) * (qty as int);
+
+//           return Dismissible(
+//             key: ValueKey("$serial-$name"),
+//             direction: DismissDirection.endToStart,
+//             background: Container(
+//               color: Colors.redAccent,
+//               alignment: Alignment.centerRight,
+//               padding: const EdgeInsets.only(right: 20),
+//               child: const Icon(Icons.delete, color: Colors.white),
+//             ),
+//             onDismissed: (_) {
+//               setState(() {
+//                 widget.billItems.remove(item);
+
+//                 // Reassign serials after removal
+//                 for (int i = 0; i < widget.billItems.length; i++) {
+//                   widget.billItems[i]["serial"] = i + 1;
+//                 }
+
+//                 // Optional: update scannedProductsProvider if needed
+//                 ref.read(scannedProductsProvider.notifier).state = [
+//                   ...widget.billItems,
+//                 ];
+//               });
+
+//               ScaffoldMessenger.of(context).showSnackBar(
+//                 SnackBar(content: Text("🗑️ '$name' removed from bill")),
+//               );
+//             },
+//             child: Padding(
+//               padding: const EdgeInsets.symmetric(vertical: 8),
+//               child: Column(
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   Row(
+//                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
 //                     children: [
-//                       Text(
-//                         "${item["serial"]}. ${item["name"]}",
-//                         style: TextStyle(
-//                           fontSize: 16,
-//                           fontWeight: FontWeight.bold,
-//                           color: isDarkMode ? Colors.white : Colors.black,
+//                       Expanded(
+//                         flex: 2,
+//                         child: Text(
+//                           "$serial. $name",
+//                           style: TextStyle(
+//                             fontSize: 16,
+//                             fontWeight: FontWeight.bold,
+//                             color: isDarkMode ? Colors.white : Colors.black,
+//                           ),
 //                         ),
 //                       ),
 //                       Text(
-//                         "Qty: ${item["quantity"]} | Price/unit: ₹${item["price"]} | GST: ${item["gst"]} | Discount: ${item["discount"]}",
+//                         "₹${total.toStringAsFixed(2)}",
 //                         style: TextStyle(
-//                           fontSize: 14,
-//                           color: isDarkMode ? Colors.white70 : Colors.black54,
+//                           fontSize: 18,
+//                           fontWeight: FontWeight.bold,
+//                           color: Colors.green[700],
 //                         ),
 //                       ),
 //                     ],
 //                   ),
-//                 ),
-//                 Expanded(
-//                   child: Text(
-//                     "₹${(item["price"] as double) * (item["quantity"] as int)}",
-//                     textAlign: TextAlign.right,
+//                   const SizedBox(height: 2),
+//                   Text(
+//                     "Qty: $qty | Price/unit: ₹$price | GST: $gst | Discount: $discount",
 //                     style: TextStyle(
-//                       fontSize: 18,
-//                       fontWeight: FontWeight.bold,
-//                       color: Colors.green[700],
+//                       fontSize: 14,
+//                       color: isDarkMode ? Colors.white70 : Colors.black54,
 //                     ),
 //                   ),
-//                 ),
-//               ],
+//                 ],
+//               ),
 //             ),
 //           );
 //         }).toList(),
 //   );
 
-//   Widget _buildBillSummary(bool isDarkMode) => Column(
-//     crossAxisAlignment: CrossAxisAlignment.start,
-//     children: [
-//       _billSummaryRow("Total Items:", "${BillData.getTotalQuantity()}"),
-//       _billSummaryRow(
-//         "Total Amount:",
-//         "₹${BillData.getTotalAmount().toStringAsFixed(2)}",
-//         isBold: true,
-//       ),
-//       _billSummaryRow(
-//         "GST (5%):",
-//         "₹${BillData.getTotalGST().toStringAsFixed(2)}",
-//       ),
-//       _billSummaryRow(
-//         "Net Amount Due:",
-//         "₹${BillData.getNetAmountDue().toStringAsFixed(2)}",
-//         isBold: true,
-//       ),
-//     ],
-//   );
+//   Widget _buildBillSummary(bool isDarkMode) {
+//     final scannedItems = widget.billItems;
 
-//   Widget _buildPaymentDetails(bool isDarkMode) => Column(
-//     crossAxisAlignment: CrossAxisAlignment.start,
-//     children: [
-//       _billSummaryRow(
-//         "Amount Paid:",
-//         "₹${BillData.amountPaid.toStringAsFixed(2)}",
-//         isBold: true,
-//       ),
-//       _billSummaryRow(
-//         "Balance Amount:",
-//         "₹${BillData.getBalanceAmount().toStringAsFixed(2)}",
-//         isBold: true,
-//       ),
-//     ],
-//   );
+//     double totalFinalAmount = 0.0;
+//     int totalQuantity = 0;
+
+//     for (var item in scannedItems) {
+//       final price = item["finalPrice"] ?? item["price"] ?? 0.0;
+//       final quantity = item["quantity"] ?? 1;
+//       totalFinalAmount += (price as double) * (quantity as int);
+//       totalQuantity += quantity as int;
+//     }
+
+//     return Column(
+//       crossAxisAlignment: CrossAxisAlignment.start,
+//       children: [
+//         _billSummaryRow("Total Items:", "$totalQuantity"),
+//         _billSummaryRow(
+//           "Total Amount:",
+//           "₹${totalFinalAmount.toStringAsFixed(2)}",
+//           isBold: true,
+//         ),
+//         // _billSummaryRow(
+//         //   "GST:",
+//         //   "₹${BillData.getTotalGST().toStringAsFixed(2)}",
+//         // ),
+//         _billSummaryRow(
+//           "Net Amount Due:",
+//           "₹${totalFinalAmount.toStringAsFixed(2)}",
+//           isBold: true,
+//         ),
+//       ],
+//     );
+//   }
+
+//   Widget _buildPaymentDetails(bool isDarkMode) {
+//     double total = widget.billItems.fold(0, (sum, item) {
+//       final p = item["finalPrice"] ?? item["price"] ?? 0.0;
+//       final q = item["quantity"] ?? 1;
+//       return sum + (p as double) * (q as int);
+//     });
+//     final balance = total - BillData.amountPaid;
+
+//     return Column(
+//       crossAxisAlignment: CrossAxisAlignment.start,
+//       children: [
+//         Text("Amount Paid: ₹${BillData.amountPaid.toStringAsFixed(2)}"),
+//         Text("Balance: ₹${balance.toStringAsFixed(2)}"),
+//         if (_paymentVerified && _billOtp != null)
+//           Text("Verification Code: $_billOtp"),
+//       ],
+//     );
+//   }
 
 //   Widget _buildFooterQuote(bool isDarkMode) => Center(
 //     child: Column(
@@ -1024,12 +1227,16 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 //             label,
 //             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
 //           ),
-//           Text(
-//             value,
-//             style: TextStyle(
-//               fontSize: 18,
-//               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-//               color: isBold ? Colors.green[800] : null,
+//           Expanded(
+//             child: Text(
+//               value,
+//               textAlign: TextAlign.end,
+//               overflow: TextOverflow.ellipsis,
+//               style: TextStyle(
+//                 fontSize: 18,
+//                 fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+//                 color: isBold ? Colors.green[800] : null,
+//               ),
 //             ),
 //           ),
 //         ],
@@ -1037,3 +1244,4 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 //     );
 //   }
 // }
+

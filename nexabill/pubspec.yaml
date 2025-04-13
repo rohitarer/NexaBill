@@ -53,6 +53,11 @@ dependencies:
   permission_handler: ^12.0.0
   saver_gallery: ^4.0.1
   qr_code_scanner_plus: ^2.0.10+1
+  razorpay_flutter: ^1.4.0
+  # paytm_allinonesdk: ^1.2.8
+  # phonepe_payment_sdk: ^3.0.0
+  crypto: ^3.0.6
+  # pay: ^3.2.1
 
 dev_dependencies:
   flutter_test:
@@ -78,7 +83,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   # assets:
-  #   - images/a_dot_burr.jpeg
+  #   - assets/google_pay_config.json
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

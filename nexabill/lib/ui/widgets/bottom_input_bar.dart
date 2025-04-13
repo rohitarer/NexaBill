@@ -1,21 +1,184 @@
+// 🔄 Final Razorpay integration with OTP update trigger using Riverpod
+
+import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nexabill/core/theme.dart';
+import 'package:nexabill/data/bill_data.dart';
+import 'package:nexabill/providers/customer_home_provider.dart';
+import 'package:nexabill/providers/otp_provider.dart';
+import 'package:nexabill/services/razorpay_service.dart';
+import 'package:nexabill/ui/screens/customer_home_screen.dart';
 import 'package:nexabill/ui/screens/qr_scanner_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
-class BottomInputBar extends StatefulWidget {
+class BottomInputBar extends ConsumerStatefulWidget {
   const BottomInputBar({super.key});
 
   @override
-  _BottomInputBarState createState() => _BottomInputBarState();
+  ConsumerState<BottomInputBar> createState() => _BottomInputBarState();
 }
 
-class _BottomInputBarState extends State<BottomInputBar> {
+class _BottomInputBarState extends ConsumerState<BottomInputBar> {
   final TextEditingController _controller = TextEditingController();
   bool _showExtraIcons = false;
+  late Razorpay _razorpay;
+
+  @override
+  void initState() {
+    super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("✅ Payment Successful")));
+
+    final scannedProducts = ref.read(scannedProductsProvider);
+    double totalFinalAmount = 0.0;
+    for (var item in scannedProducts) {
+      final price = item["finalPrice"] ?? item["price"] ?? 0.0;
+      final quantity = item["quantity"] ?? 1;
+      totalFinalAmount += (price as double) * (quantity as int);
+    }
+
+    final otp = (100000 + Random().nextInt(900000)).toString();
+    if (BillData.billNo.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection("otps")
+          .doc(BillData.billNo)
+          .set({
+            'otp': otp,
+            'amountPaid': totalFinalAmount,
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+
+      BillData.amountPaid = totalFinalAmount;
+      ref.read(otpRefreshProvider.notifier).state =
+          !ref.read(otpRefreshProvider);
+
+      // Refresh CustomerHomeScreen directly if mounted
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+        );
+      }
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("❌ Payment Failed: ${response.message}")),
+    );
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("💼 Wallet: ${response.walletName}")),
+    );
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
+  }
+
+  void _showPaymentOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Wrap(
+            runSpacing: 20,
+            children: [
+              Center(
+                child: Container(
+                  height: 4,
+                  width: 40,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[400],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              Text(
+                "Choose Payment Method",
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.money),
+                label: const Text("Cash Payment"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("💵 Cash Payment Selected")),
+                  );
+                },
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.payment),
+                label: const Text("Pay with Razorpay"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  minimumSize: const Size.fromHeight(50),
+                ),
+                onPressed: () {
+                  final scannedProducts = ref.read(scannedProductsProvider);
+                  double totalFinalAmount = 0.0;
+                  for (var item in scannedProducts) {
+                    final price = item["finalPrice"] ?? item["price"] ?? 0.0;
+                    final quantity = item["quantity"] ?? 1;
+                    totalFinalAmount += (price as double) * (quantity as int);
+                  }
+                  final int amountPaise = (totalFinalAmount * 100).toInt();
+
+                  _razorpay.open({
+                    'key': 'rzp_test_CYtWPQqiG0GETR',
+                    'amount': amountPaise,
+                    'name': "Rohit Arer",
+                    'description': 'Bill Payment',
+                    'prefill': {
+                      'contact': '9999999999',
+                      'email': 'test@example.com',
+                    },
+                    'external': {
+                      'wallets': ['paytm'],
+                    },
+                  });
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scannedProducts = ref.watch(scannedProductsProvider);
+    final isPayButtonEnabled = scannedProducts.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -46,16 +209,25 @@ class _BottomInputBarState extends State<BottomInputBar> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 💳 Payment Icon
-                IconButton(
-                  icon: const Icon(Icons.payment),
-                  color: theme.iconTheme.color,
-                  onPressed: () {
-                    // TODO: Add payment logic
-                  },
+                ElevatedButton(
+                  onPressed: isPayButtonEnabled ? _showPaymentOptions : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.blueColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    minimumSize: const Size(0, 35),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    disabledBackgroundColor: Colors.grey,
+                  ),
+                  child: const Text("Pay"),
                 ),
-
-                // ➕ Toggle Icons
+                const SizedBox(width: 8),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   transitionBuilder:
@@ -107,8 +279,6 @@ class _BottomInputBarState extends State<BottomInputBar> {
                           )
                           : const SizedBox(key: ValueKey("empty")),
                 ),
-
-                // Toggle Button (➕ ➖)
                 IconButton(
                   icon: Icon(_showExtraIcons ? Icons.remove : Icons.add),
                   color: theme.iconTheme.color,
@@ -124,24 +294,182 @@ class _BottomInputBarState extends State<BottomInputBar> {
   }
 }
 
-// import 'package:flutter/material.dart';
-// import 'package:nexabill/ui/screens/qr_scanner_screen.dart'; // Add your scanner screen import
-// import 'package:permission_handler/permission_handler.dart';
 
-// class BottomInputBar extends StatefulWidget {
+
+// // 🔄 Final Razorpay integration with OTP update trigger using Riverpod
+
+
+// import 'dart:math';
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:flutter/material.dart';
+// import 'package:flutter_riverpod/flutter_riverpod.dart';
+// import 'package:nexabill/core/theme.dart';
+// import 'package:nexabill/data/bill_data.dart';
+// import 'package:nexabill/providers/customer_home_provider.dart';
+// import 'package:nexabill/providers/otp_provider.dart';
+// import 'package:nexabill/services/razorpay_service.dart';
+// import 'package:nexabill/ui/screens/customer_home_screen.dart';
+// import 'package:nexabill/ui/screens/qr_scanner_screen.dart';
+// import 'package:permission_handler/permission_handler.dart';
+// import 'package:razorpay_flutter/razorpay_flutter.dart';
+
+// class BottomInputBar extends ConsumerStatefulWidget {
 //   const BottomInputBar({super.key});
 
 //   @override
-//   _BottomInputBarState createState() => _BottomInputBarState();
+//   ConsumerState<BottomInputBar> createState() => _BottomInputBarState();
 // }
 
-// class _BottomInputBarState extends State<BottomInputBar> {
+// class _BottomInputBarState extends ConsumerState<BottomInputBar> {
 //   final TextEditingController _controller = TextEditingController();
 //   bool _showExtraIcons = false;
+//   late Razorpay _razorpay;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _razorpay = Razorpay();
+//     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+//     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+//     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+//   }
+
+//   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+//     ScaffoldMessenger.of(
+//       context,
+//     ).showSnackBar(const SnackBar(content: Text("✅ Payment Successful")));
+
+//     final scannedProducts = ref.read(scannedProductsProvider);
+//     double totalFinalAmount = 0.0;
+//     for (var item in scannedProducts) {
+//       final price = item["finalPrice"] ?? item["price"] ?? 0.0;
+//       final quantity = item["quantity"] ?? 1;
+//       totalFinalAmount += (price as double) * (quantity as int);
+//     }
+
+//     final otp = (100000 + Random().nextInt(900000)).toString();
+//     if (BillData.billNo.isNotEmpty) {
+//       await FirebaseFirestore.instance
+//           .collection("otps")
+//           .doc(BillData.billNo)
+//           .set({
+//             'otp': otp,
+//             'amountPaid': totalFinalAmount,
+//             'timestamp': FieldValue.serverTimestamp(),
+//           });
+
+//       // 🔁 Trigger OTP UI update
+//       ref.read(otpRefreshProvider.notifier).state =
+//           !ref.read(otpRefreshProvider);
+//     }
+//   }
+
+//   void _handlePaymentError(PaymentFailureResponse response) {
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(content: Text("❌ Payment Failed: ${response.message}")),
+//     );
+//   }
+
+//   void _handleExternalWallet(ExternalWalletResponse response) {
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(content: Text("💼 Wallet: ${response.walletName}")),
+//     );
+//   }
+
+//   @override
+//   void dispose() {
+//     _razorpay.clear();
+//     super.dispose();
+//   }
+
+//   void _showPaymentOptions() {
+//     showModalBottomSheet(
+//       context: context,
+//       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+//       shape: const RoundedRectangleBorder(
+//         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+//       ),
+//       builder: (_) {
+//         return Padding(
+//           padding: const EdgeInsets.all(20),
+//           child: Wrap(
+//             runSpacing: 20,
+//             children: [
+//               Center(
+//                 child: Container(
+//                   height: 4,
+//                   width: 40,
+//                   margin: const EdgeInsets.only(bottom: 12),
+//                   decoration: BoxDecoration(
+//                     color: Colors.grey[400],
+//                     borderRadius: BorderRadius.circular(8),
+//                   ),
+//                 ),
+//               ),
+//               Text(
+//                 "Choose Payment Method",
+//                 style: Theme.of(
+//                   context,
+//                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+//               ),
+//               ElevatedButton.icon(
+//                 icon: const Icon(Icons.money),
+//                 label: const Text("Cash Payment"),
+//                 style: ElevatedButton.styleFrom(
+//                   backgroundColor: Colors.green,
+//                   minimumSize: const Size.fromHeight(50),
+//                 ),
+//                 onPressed: () {
+//                   Navigator.pop(context);
+//                   ScaffoldMessenger.of(context).showSnackBar(
+//                     const SnackBar(content: Text("💵 Cash Payment Selected")),
+//                   );
+//                 },
+//               ),
+//               ElevatedButton.icon(
+//                 icon: const Icon(Icons.payment),
+//                 label: const Text("Pay with Razorpay"),
+//                 style: ElevatedButton.styleFrom(
+//                   backgroundColor: Colors.deepPurple,
+//                   minimumSize: const Size.fromHeight(50),
+//                 ),
+//                 onPressed: () {
+//                   final scannedProducts = ref.read(scannedProductsProvider);
+//                   double totalFinalAmount = 0.0;
+//                   for (var item in scannedProducts) {
+//                     final price = item["finalPrice"] ?? item["price"] ?? 0.0;
+//                     final quantity = item["quantity"] ?? 1;
+//                     totalFinalAmount += (price as double) * (quantity as int);
+//                   }
+//                   final int amountPaise = (totalFinalAmount * 100).toInt();
+
+//                   _razorpay.open({
+//                     'key': 'rzp_test_CYtWPQqiG0GETR',
+//                     'amount': amountPaise,
+//                     'name': "Rohit Arer",
+//                     'description': 'Bill Payment',
+//                     'prefill': {
+//                       'contact': '9999999999',
+//                       'email': 'test@example.com',
+//                     },
+//                     'external': {
+//                       'wallets': ['paytm'],
+//                     },
+//                   });
+//                 },
+//               ),
+//             ],
+//           ),
+//         );
+//       },
+//     );
+//   }
 
 //   @override
 //   Widget build(BuildContext context) {
 //     final theme = Theme.of(context);
+//     final scannedProducts = ref.watch(scannedProductsProvider);
+//     final isPayButtonEnabled = scannedProducts.isNotEmpty;
 
 //     return Container(
 //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -172,25 +500,35 @@ class _BottomInputBarState extends State<BottomInputBar> {
 //             child: Row(
 //               mainAxisSize: MainAxisSize.min,
 //               children: [
-//                 AnimatedContainer(
-//                   duration: const Duration(milliseconds: 300),
-//                   curve: Curves.easeInOut,
-//                   width: _showExtraIcons ? 40 : 48,
-//                   child: IconButton(
-//                     icon: const Icon(Icons.payment),
-//                     color: theme.iconTheme.color,
-//                     onPressed: () {
-//                       // TODO: Implement payment logic
-//                     },
+//                 ElevatedButton(
+//                   onPressed: isPayButtonEnabled ? _showPaymentOptions : null,
+//                   style: ElevatedButton.styleFrom(
+//                     backgroundColor: AppTheme.blueColor,
+//                     foregroundColor: Colors.white,
+//                     padding: const EdgeInsets.symmetric(horizontal: 16),
+//                     minimumSize: const Size(0, 40),
+//                     shape: RoundedRectangleBorder(
+//                       borderRadius: BorderRadius.circular(8),
+//                     ),
+//                     textStyle: const TextStyle(
+//                       fontSize: 14,
+//                       fontWeight: FontWeight.bold,
+//                     ),
+//                     disabledBackgroundColor: Colors.grey,
 //                   ),
+//                   child: const Text("Pay"),
 //                 ),
+//                 const SizedBox(width: 8),
 //                 AnimatedSwitcher(
 //                   duration: const Duration(milliseconds: 300),
+//                   transitionBuilder:
+//                       (child, anim) =>
+//                           FadeTransition(opacity: anim, child: child),
 //                   child:
 //                       _showExtraIcons
 //                           ? Row(
+//                             key: const ValueKey("icons"),
 //                             children: [
-//                               const SizedBox(width: 4),
 //                               IconButton(
 //                                 icon: const Icon(Icons.qr_code_scanner),
 //                                 color: theme.iconTheme.color,
@@ -201,7 +539,7 @@ class _BottomInputBarState extends State<BottomInputBar> {
 //                                     showDialog(
 //                                       context: context,
 //                                       builder:
-//                                           (context) => const Dialog(
+//                                           (_) => const Dialog(
 //                                             backgroundColor: Colors.transparent,
 //                                             insetPadding: EdgeInsets.all(20),
 //                                             child: AspectRatio(
@@ -214,14 +552,13 @@ class _BottomInputBarState extends State<BottomInputBar> {
 //                                     ScaffoldMessenger.of(context).showSnackBar(
 //                                       const SnackBar(
 //                                         content: Text(
-//                                           "Camera permission is required to scan QR codes.",
+//                                           "Camera permission required.",
 //                                         ),
 //                                       ),
 //                                     );
 //                                   }
 //                                 },
 //                               ),
-//                               const SizedBox(width: 4),
 //                               IconButton(
 //                                 icon: const Icon(Icons.mic),
 //                                 color: theme.iconTheme.color,
@@ -231,14 +568,13 @@ class _BottomInputBarState extends State<BottomInputBar> {
 //                               ),
 //                             ],
 //                           )
-//                           : const SizedBox(),
+//                           : const SizedBox(key: ValueKey("empty")),
 //                 ),
 //                 IconButton(
 //                   icon: Icon(_showExtraIcons ? Icons.remove : Icons.add),
 //                   color: theme.iconTheme.color,
-//                   onPressed: () {
-//                     setState(() => _showExtraIcons = !_showExtraIcons);
-//                   },
+//                   onPressed:
+//                       () => setState(() => _showExtraIcons = !_showExtraIcons),
 //                 ),
 //               ],
 //             ),

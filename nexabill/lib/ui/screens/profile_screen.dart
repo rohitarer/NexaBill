@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nexabill/core/theme.dart';
@@ -6,6 +7,23 @@ import 'package:nexabill/providers/profile_provider.dart';
 import 'package:nexabill/ui/widgets/custom_dropdown.dart';
 import 'package:nexabill/ui/widgets/custom_textfield.dart';
 import 'package:nexabill/data/state_data.dart';
+
+final adminMartNamesProvider = FutureProvider<List<String>>((ref) async {
+  final snapshot =
+      await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'admin')
+          .get();
+
+  final marts =
+      snapshot.docs
+          .map((doc) => doc.data()['martName'] as String?)
+          .where((name) => name != null && name.isNotEmpty)
+          .cast<String>()
+          .toList();
+
+  return marts;
+});
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final bool fromHome;
@@ -95,6 +113,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final isDarkMode = theme.brightness == Brightness.dark;
     // ✅ Fetch the latest profile data from Firebase
     final profileDataAsync = ref.watch(profileFutureProvider);
+    // 📦 Create a FutureProvider to fetch mart names from Firestore
+    final availableAdminMartsProvider = FutureProvider<List<String>>((
+      ref,
+    ) async {
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .where('role', isEqualTo: 'Admin')
+              .get();
+
+      return snapshot.docs
+          .map((doc) => doc.data()['martName']?.toString() ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList();
+    });
 
     return Scaffold(
       appBar:
@@ -723,6 +756,73 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ],
                               ),
 
+                              // // ✅ Replace the current CustomDropdown for Mart with this block
+                              // Column(
+                              //   crossAxisAlignment: CrossAxisAlignment.start,
+                              //   children: [
+                              //     Text(
+                              //       "Mart",
+                              //       style: TextStyle(
+                              //         fontSize: 16,
+                              //         fontWeight: FontWeight.bold,
+                              //         color:
+                              //             isDarkMode
+                              //                 ? Colors.white
+                              //                 : Colors.black,
+                              //       ),
+                              //     ),
+                              //     const SizedBox(height: 5),
+                              //     ref
+                              //         .watch(availableAdminMartsProvider)
+                              //         .when(
+                              //           data:
+                              //               (martsList) => CustomDropdown(
+                              //                 value:
+                              //                     profileState.mart.isNotEmpty
+                              //                         ? profileState.mart
+                              //                         : null,
+                              //                 hintText: "Select your mart",
+                              //                 items: martsList,
+                              //                 onChanged: (newValue) {
+                              //                   profileNotifier
+                              //                       .updateProfileField(
+                              //                         "mart",
+                              //                         newValue,
+                              //                         ref,
+                              //                       );
+                              //                 },
+                              //                 textColor:
+                              //                     isDarkMode
+                              //                         ? Colors.black
+                              //                         : Colors.white,
+                              //                 hintColor:
+                              //                     isDarkMode
+                              //                         ? Colors.black54
+                              //                         : Colors.white70,
+                              //                 fillColor:
+                              //                     isDarkMode
+                              //                         ? Colors.white
+                              //                         : Colors.black,
+                              //                 prefixIcon: Icons.store,
+                              //                 suffixIcon: Icons.arrow_drop_down,
+                              //                 iconColor:
+                              //                     isDarkMode
+                              //                         ? Colors.black54
+                              //                         : Colors.black54,
+                              //               ),
+                              //           loading:
+                              //               () =>
+                              //                   const CircularProgressIndicator(),
+                              //           error:
+                              //               (error, _) => Text(
+                              //                 'Error loading marts',
+                              //                 style: TextStyle(
+                              //                   color: Colors.redAccent,
+                              //                 ),
+                              //               ),
+                              //         ),
+                              //   ],
+                              // ),
                               const SizedBox(height: 15),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -19,10 +19,10 @@ class _BillVerificationScreenState
   final TextEditingController _codeController = TextEditingController();
 
   void _checkCode(String value) {
-    if (value.length == 4) {
+    if (value.length == 6) {
       Future.delayed(const Duration(milliseconds: 100), () {
         FocusScope.of(context).unfocus(); // ✅ Close keyboard
-        debugPrint("4-digit code entered: $value -> Showing bill.");
+        debugPrint("6-digit OTP entered: $value -> Showing bill.");
         ref.read(billVerificationProvider.notifier).showBill();
         _codeController.clear();
       });
@@ -59,17 +59,17 @@ class _BillVerificationScreenState
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  "Enter 4-digit Verification Code",
+                  "Enter 6-digit Verification Code",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
-                  width: 180,
+                  width: 200,
                   child: CustomTextField(
                     controller: _codeController,
-                    maxLength: 4,
+                    maxLength: 6, // ✅ Updated to 6 digits
                     keyboardType: TextInputType.number,
-                    hintText: "XXXX",
+                    hintText: "XXXXXX",
                     onChanged: _checkCode,
                     isPassword: false,
                     textAlign: TextAlign.center,
