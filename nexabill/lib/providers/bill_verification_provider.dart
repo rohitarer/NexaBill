@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:nexabill/data/bill_data.dart';
 
 enum BillSealStatus { none, sealed, rejected }
@@ -87,13 +89,13 @@ class BillVerificationNotifier extends StateNotifier<BillVerificationState> {
       return;
     }
     debugPrint('Sealing bill...');
-    BillData.sealStatus = BillSealStatus.sealed.value; // ✅ update global
+    BillData.sealStatus = BillSealStatus.sealed.value;
     state = state.copyWith(sealStatus: BillSealStatus.sealed);
   }
 
   void rejectBill() {
     debugPrint('Rejecting bill...');
-    BillData.sealStatus = BillSealStatus.rejected.value; // ✅ update global
+    BillData.sealStatus = BillSealStatus.rejected.value;
     state = state.copyWith(sealStatus: BillSealStatus.rejected);
 
     Future.delayed(const Duration(seconds: 2), () {
@@ -102,14 +104,17 @@ class BillVerificationNotifier extends StateNotifier<BillVerificationState> {
         isVisible: false,
         sealStatus: BillSealStatus.none,
       );
-      BillData.sealStatus = BillSealStatus.none.value; // ✅ clear global
+      BillData.sealStatus = BillSealStatus.none.value;
     });
   }
 
   void setSealStatus(BillSealStatus sealStatus) {
     debugPrint('Setting seal status from Firestore: $sealStatus');
-    state = state.copyWith(sealStatus: sealStatus);
-    BillData.sealStatus = sealStatus.value; // ✅ sync with Firestore load
+    // ✅ Only set state if changed OR force it
+    if (state.sealStatus != sealStatus) {
+      state = state.copyWith(sealStatus: sealStatus);
+      BillData.sealStatus = sealStatus.value;
+    }
   }
 
   void reset() {
@@ -126,3 +131,27 @@ final billVerificationProvider =
     StateNotifierProvider<BillVerificationNotifier, BillVerificationState>(
       (ref) => BillVerificationNotifier(),
     );
+
+/// ✅ Live Firestore stream for real-time updates from the customer's bill document
+final billSealStatusStreamProvider = StreamProvider.autoDispose<BillSealStatus>(
+  (ref) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final billNo = BillData.billNo;
+
+    if (uid == null || billNo.isEmpty) {
+      return const Stream.empty();
+    }
+
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('my_bills')
+        .doc(billNo)
+        .snapshots()
+        .map((doc) {
+          final data = doc.data();
+          final status = data?["sealStatus"] ?? "none";
+          return BillSealStatusExtension.fromString(status);
+        });
+  },
+);

@@ -37,13 +37,24 @@ class _BillContainerState extends ConsumerState<BillContainer> {
   // bool _newOtpReceived = false;
   bool _waitingForOtp = false;
 
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   Future.microtask(() async {
+  //     _resetPaymentState();
+  //     await _loadBillData();
+  //   });
+  //   Future.microtask(() => BillData.reloadCashierAndCounterIfOtpVerified(ref));
+  // }
   @override
   void initState() {
     super.initState();
-    Future.microtask(() async {
-      _resetPaymentState();
-      await _loadBillData();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      debugPrint("📍 Calling _loadBillData from initState");
+      await _loadBillData(); // <--- ensures subscription
     });
+
     Future.microtask(() => BillData.reloadCashierAndCounterIfOtpVerified(ref));
   }
 
@@ -81,62 +92,80 @@ class _BillContainerState extends ConsumerState<BillContainer> {
       // ✅ Ensure BillData.customerId is globally available
       BillData.customerId = customerId ?? "";
 
-      if (customerId != null && customerId.isNotEmpty) {
-        final billSnapshot =
-            await FirebaseFirestore.instance
+      if (customerId != null &&
+          customerId.isNotEmpty &&
+          BillData.billNo.isNotEmpty) {
+        debugPrint(
+          "📡 Subscribing to bill stream for $customerId → ${BillData.billNo}",
+        );
+
+        final billStream =
+            FirebaseFirestore.instance
                 .collection('users')
                 .doc(customerId)
                 .collection('my_bills')
                 .doc(BillData.billNo)
-                .get();
+                .snapshots();
 
-        if (!billSnapshot.exists) {
-          print("❌ Bill not found in Firestore for OTP verification.");
-          return;
-        }
-
-        final data = billSnapshot.data()!;
-        print("📦 Firestore Bill Data: ${data.keys}");
-
-        // ✅ Load products
-        final rawProducts = data['products'];
-        if (rawProducts != null && rawProducts is Map) {
-          final productsMap = Map<String, dynamic>.from(rawProducts);
-          BillData.products =
-              productsMap.entries
-                  .map((e) => Map<String, dynamic>.from(e.value))
-                  .toList();
-
-          print("🛍️ Loaded ${BillData.products.length} products:");
-          for (var p in BillData.products) {
-            print("  • ${p["name"]} x${p["quantity"]} @ ₹${p["finalPrice"]}");
+        billStream.listen((billSnapshot) {
+          if (!billSnapshot.exists) {
+            print("❌ Bill not found in Firestore for OTP verification.");
+            return;
           }
-        } else {
-          print("⚠️ No valid 'products' map found.");
-          BillData.products = [];
-        }
 
-        // ✅ Assign bill fields
-        BillData.customerName = data['customerName'] ?? '';
-        BillData.customerMobile = data['customerMobile'] ?? '';
-        BillData.martName = data['martName'] ?? '';
-        BillData.martAddress = data['martAddress'] ?? '';
-        BillData.amountPaid = (data['amountPaid'] ?? 0).toDouble();
-        BillData.otp = data['otp'] ?? '';
-        BillData.billDate = data['billDate'] ?? '';
-        BillData.session = data['session'] ?? '';
-        BillData.cashier = data['cashier'] ?? '';
-        BillData.counterNo = data['counterNo'] ?? '';
-        BillData.martContact = data['martContact'] ?? '';
-        BillData.martGSTIN = data['martGSTIN'] ?? '';
-        BillData.martCIN = data['martCIN'] ?? '';
-        BillData.sealStatus = data['sealStatus'] ?? 'none';
+          final data = billSnapshot.data()!;
+          print("📦 Firestore Bill Data Keys: ${data.keys}");
 
-        // ✅ Sync with provider
-        final seal = BillSealStatusExtension.fromString(BillData.sealStatus);
-        billVerificationNotifier.setSealStatus(seal);
+          // ✅ Load products
+          final rawProducts = data['products'];
+          if (rawProducts != null && rawProducts is Map) {
+            final productsMap = Map<String, dynamic>.from(rawProducts);
+            BillData.products =
+                productsMap.entries
+                    .map((e) => Map<String, dynamic>.from(e.value))
+                    .toList();
 
-        print("✅ Bill loaded from customer account.");
+            print("🛍️ Loaded ${BillData.products.length} products:");
+            for (var p in BillData.products) {
+              print("  • ${p["name"]} x${p["quantity"]} @ ₹${p["finalPrice"]}");
+            }
+          } else {
+            print("⚠️ No valid 'products' map found.");
+            BillData.products = [];
+          }
+
+          // ✅ Assign bill fields
+          BillData.customerName = data['customerName'] ?? '';
+          BillData.customerMobile = data['customerMobile'] ?? '';
+          BillData.martName = data['martName'] ?? '';
+          BillData.martAddress = data['martAddress'] ?? '';
+          BillData.amountPaid = (data['amountPaid'] ?? 0).toDouble();
+          BillData.otp = data['otp'] ?? '';
+          BillData.billDate = data['billDate'] ?? '';
+          BillData.session = data['session'] ?? '';
+          BillData.cashier = data['cashier'] ?? '';
+          BillData.counterNo = data['counterNo'] ?? '';
+          BillData.martContact = data['martContact'] ?? '';
+          BillData.martGSTIN = data['martGSTIN'] ?? '';
+          BillData.martCIN = data['martCIN'] ?? '';
+          BillData.sealStatus = data['sealStatus'] ?? 'none';
+
+          print("🔁 Firestore Seal Status (raw): '${data['sealStatus']}'");
+          print(
+            "🪧 Parsed Enum: ${BillSealStatusExtension.fromString(BillData.sealStatus)}",
+          );
+
+          // ✅ Sync with provider
+          final seal = BillSealStatusExtension.fromString(BillData.sealStatus);
+          billVerificationNotifier.setSealStatus(seal);
+
+          print("✅ Bill loaded from customer account. Notified state: $seal");
+
+          if (mounted) {
+            print("🧩 setState() triggered after bill stream update.");
+            setState(() {});
+          }
+        });
       } else {
         // 📦 New bill creation flow (customer)
         final customerProfile = await profileFuture;
@@ -190,7 +219,10 @@ class _BillContainerState extends ConsumerState<BillContainer> {
         print("✅ Generated new Bill No: ${BillData.billNo}");
       }
 
-      if (mounted) setState(() {});
+      if (mounted) {
+        print("✅ Final setState() call after full execution.");
+        setState(() {});
+      }
     } catch (e, st) {
       print("❌ Error in _loadBillData: $e");
       print("📍 StackTrace: $st");
@@ -358,25 +390,37 @@ class _BillContainerState extends ConsumerState<BillContainer> {
                           ],
                         ),
 
-                        // if (sealStatus != BillSealStatus.none)
-                        //   Center(
-                        //     child: VerificationStamp(
-                        //       type:
-                        //           sealStatus == BillSealStatus.sealed
-                        //               ? StampType.verified
-                        //               : StampType.rejected,
-                        //       martName: BillData.martName,
-                        //     ),
+                        // if (sealStatus == BillSealStatus.sealed ||
+                        //     sealStatus == BillSealStatus.rejected)
+                        //   VerificationStamp(
+                        //     type:
+                        //         sealStatus == BillSealStatus.sealed
+                        //             ? StampType.verified
+                        //             : StampType.rejected,
+                        //     martName: BillData.martName,
                         //   ),
-                        if (sealStatus == BillSealStatus.sealed ||
-                            sealStatus == BillSealStatus.rejected)
-                          VerificationStamp(
-                            type:
-                                sealStatus == BillSealStatus.sealed
-                                    ? StampType.verified
-                                    : StampType.rejected,
-                            martName: BillData.martName,
-                          ),
+                        Builder(
+                          builder: (context) {
+                            if (sealStatus == BillSealStatus.sealed ||
+                                sealStatus == BillSealStatus.rejected) {
+                              debugPrint(
+                                "🔴 Showing Stamp: ${sealStatus.name}",
+                              );
+                              return VerificationStamp(
+                                type:
+                                    sealStatus == BillSealStatus.sealed
+                                        ? StampType.verified
+                                        : StampType.rejected,
+                                martName: BillData.martName,
+                              );
+                            } else {
+                              debugPrint(
+                                "⚪️ No stamp to show yet. Status: ${sealStatus.name}",
+                              );
+                              return const SizedBox.shrink();
+                            }
+                          },
+                        ),
                       ],
                     ),
                   ),
