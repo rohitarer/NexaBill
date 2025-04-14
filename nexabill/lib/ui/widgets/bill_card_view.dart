@@ -67,7 +67,7 @@ class BillCardView extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
-          "🛒 ${BillData.martName.toUpperCase()} 🛒",
+          "🍎 ${BillData.martName.toUpperCase()} 🍎",
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -112,7 +112,7 @@ class BillCardView extends ConsumerWidget {
         ),
         const SizedBox(height: 3),
         Text(
-          "📆 ${BillData.billDate}  |  💼 ${BillData.counterNo}",
+          "🗖 ${BillData.billDate}  |  💼 ${BillData.counterNo}",
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, color: Colors.grey[500]),
         ),

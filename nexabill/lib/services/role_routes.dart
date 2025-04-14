@@ -5,7 +5,7 @@ import 'package:nexabill/ui/screens/profile_screen.dart';
 import 'package:nexabill/ui/screens/mart_details_screen.dart';
 import 'package:nexabill/ui/screens/bank_details_screen.dart';
 import 'package:nexabill/ui/screens/admin_home_screen.dart';
-import 'package:nexabill/ui/screens/cashierHome_screen.dart';
+import 'package:nexabill/ui/screens/cashier_home_screen.dart';
 import 'package:nexabill/ui/screens/customer_home_screen.dart';
 import 'package:nexabill/ui/screens/signin_screen.dart';
 
@@ -19,11 +19,11 @@ class AppRoutes {
       case '/profile':
         return MaterialPageRoute(builder: (_) => ProfileScreen());
       case '/admin-home':
-        return MaterialPageRoute(builder: (_) => AdminHomeScreen());
+        return MaterialPageRoute(builder: (_) => const AdminHomeScreen());
       case '/cashier-home':
-        return MaterialPageRoute(builder: (_) => CashierHomeScreen());
+        return MaterialPageRoute(builder: (_) => const CashierHomeScreen());
       case '/customer-home':
-        return MaterialPageRoute(builder: (_) => CustomerHomeScreen());
+        return MaterialPageRoute(builder: (_) => const CustomerHomeScreen());
       case '/signin':
       default:
         return MaterialPageRoute(builder: (_) => const SignInScreen());
@@ -49,15 +49,15 @@ class AppRoutes {
       case 'admin':
         setLastRoute('/admin-home');
         debugPrint("🚀 Home → AdminHomeScreen");
-        return AdminHomeScreen();
+        return const AdminHomeScreen();
       case 'cashier':
         setLastRoute('/cashier-home');
         debugPrint("🚀 Home → CashierHomeScreen");
-        return CashierHomeScreen();
+        return const CashierHomeScreen();
       default:
         setLastRoute('/customer-home');
         debugPrint("🚀 Home → CustomerHomeScreen");
-        return CustomerHomeScreen();
+        return const CustomerHomeScreen();
     }
   }
 
@@ -71,11 +71,11 @@ class AppRoutes {
       case '/profile':
         return ProfileScreen();
       case '/admin-home':
-        return AdminHomeScreen();
+        return const AdminHomeScreen();
       case '/cashier-home':
-        return CashierHomeScreen();
+        return const CashierHomeScreen();
       case '/customer-home':
-        return CustomerHomeScreen();
+        return const CustomerHomeScreen();
       default:
         debugPrint("⚠️ Unknown or null route.");
         return null;
@@ -98,13 +98,13 @@ class AppRoutes {
     Widget home;
     switch (role.toLowerCase()) {
       case 'admin':
-        home = AdminHomeScreen();
+        home = const AdminHomeScreen();
         break;
       case 'cashier':
-        home = CashierHomeScreen();
+        home = const CashierHomeScreen();
         break;
       default:
-        home = CustomerHomeScreen();
+        home = const CustomerHomeScreen();
     }
 
     setLastRoute('/${role.toLowerCase()}-home');
@@ -116,50 +116,3 @@ class AppRoutes {
     );
   }
 }
-
-// 📦 Updated Profile Provider with Mart Details (Admin Role Only)
-
-// import 'package:flutter/material.dart';
-
-// import 'package:nexabill/ui/screens/profile_screen.dart';
-// import 'package:nexabill/ui/screens/mart_details_screen.dart';
-// import 'package:nexabill/ui/screens/bank_details_screen.dart';
-// import 'package:nexabill/ui/screens/adminHome_screen.dart';
-// import 'package:nexabill/ui/screens/cashierHome_screen.dart';
-// import 'package:nexabill/ui/screens/customerHome_screen.dart';
-// import 'package:nexabill/ui/screens/signin_screen.dart';
-
-// class AppRoutes {
-//   static Route<dynamic>? generateRoute(RouteSettings settings) {
-//     switch (settings.name) {
-//       case '/mart-details':
-//         return MaterialPageRoute(builder: (_) => const MartDetailsScreen());
-//       case '/bank-details':
-//         return MaterialPageRoute(builder: (_) => const BankDetailsScreen());
-//       case '/profile':
-//         return MaterialPageRoute(builder: (_) => ProfileScreen());
-//       default:
-//         return MaterialPageRoute(builder: (_) => const SignInScreen());
-//     }
-//   }
-
-//   static Widget getHomeScreen(String role, bool isProfileComplete) {
-//     if (!isProfileComplete) {
-//       if (role.toLowerCase() == "admin") {
-//         return const MartDetailsScreen();
-//       }
-//       return ProfileScreen();
-//     }
-
-//     switch (role.toLowerCase()) {
-//       case 'admin':
-//         return AdminHomeScreen();
-//       case 'cashier':
-//         return CashierHomeScreen();
-//       case 'customer':
-//         return CustomerHomeScreen();
-//       default:
-//         return CustomerHomeScreen();
-//     }
-//   }
-// }

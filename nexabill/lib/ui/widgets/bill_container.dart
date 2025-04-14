@@ -4,12 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nexabill/data/bill_data.dart';
+import 'package:nexabill/providers/bill_cashier_provider.dart';
 import 'package:nexabill/providers/bill_verification_provider.dart';
 import 'package:nexabill/providers/customer_home_provider.dart';
 import 'package:nexabill/providers/otp_provider.dart';
 import 'package:nexabill/providers/profile_provider.dart';
 import 'package:nexabill/ui/screens/customer_home_screen.dart';
 import 'package:nexabill/ui/widgets/bill_otp_handler.dart';
+import 'package:nexabill/ui/widgets/cahier_info_handler.dart';
 import 'package:nexabill/ui/widgets/verification_stamp.dart';
 
 class BillContainer extends ConsumerStatefulWidget {
@@ -42,6 +44,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
       _resetPaymentState();
       await _loadBillData();
     });
+    Future.microtask(() => BillData.reloadCashierAndCounterIfOtpVerified(ref));
   }
 
   void _resetPaymentState() {
@@ -52,6 +55,13 @@ class _BillContainerState extends ConsumerState<BillContainer> {
     if (mounted) setState(() {});
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    Future.microtask(() => BillData.reloadCashierAndCounterIfOtpVerified(ref));
+    // if (mounted) setState(() {});
+  }
+
   // Future<void> _loadBillData() async {
   //   try {
   //     print("🚀 Starting bill data load...");
@@ -59,12 +69,15 @@ class _BillContainerState extends ConsumerState<BillContainer> {
   //     final state = ref.read(billVerificationProvider);
   //     final userId = state.userId;
 
-  //     if (userId.isNotEmpty) {
-  //       // 🧾 Cashier flow
+  //     final currentUser = FirebaseAuth.instance.currentUser;
+  //     final isCustomer = currentUser != null && currentUser.uid == userId;
+
+  //     if (userId.isNotEmpty || isCustomer) {
+  //       // 🧾 Load bill from Firestore
   //       final billSnapshot =
   //           await FirebaseFirestore.instance
   //               .collection('users')
-  //               .doc(userId)
+  //               .doc(userId.isNotEmpty ? userId : currentUser?.uid)
   //               .collection('my_bills')
   //               .doc(BillData.billNo)
   //               .get();
@@ -104,17 +117,15 @@ class _BillContainerState extends ConsumerState<BillContainer> {
   //       BillData.otp = data['otp'] ?? '';
   //       BillData.billDate = data['billDate'] ?? '';
   //       BillData.session = data['session'] ?? '';
-  //       if ((data['counterNo'] ?? '').toString().trim().isNotEmpty) {
-  //         BillData.counterNo = data['counterNo'];
-  //       }
-
+  //       BillData.cashier = data['cashier'] ?? '';
+  //       BillData.counterNo = data['counterNo'] ?? '';
   //       BillData.martContact = data['martContact'] ?? '';
   //       BillData.martGSTIN = data['martGSTIN'] ?? '';
   //       BillData.martCIN = data['martCIN'] ?? '';
 
-  //       print("✅ Bill loaded from cashier OTP flow.");
+  //       print("✅ Bill loaded for ${isCustomer ? "customer" : "cashier"} app.");
   //     } else {
-  //       // 📦 Customer flow
+  //       // 📦 Customer flow when bill is being generated
   //       final customerProfile = await ref.read(profileFutureProvider.future);
   //       final adminUid = ref.read(selectedAdminUidProvider) as String?;
 
@@ -141,8 +152,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
   //       // Set from profile
   //       BillData.customerName = customerProfile["fullName"] ?? "";
   //       BillData.customerMobile = customerProfile["phoneNumber"] ?? "";
-  //       BillData.cashier = ""; // Don't set counterNo here
-
+  //       BillData.cashier = ""; // Will be overwritten if fetched from bill
   //       final martAddress = adminProfile["martAddress"] ?? "";
   //       final martState = adminProfile["martState"] ?? "";
   //       BillData.martName = adminProfile["martName"] ?? "";
@@ -154,8 +164,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
   //       final now = DateTime.now();
   //       BillData.billDate = DateFormat('dd-MM-yyyy').format(now);
   //       BillData.session = DateFormat('hh:mm a').format(now);
-  //       // ❌ Don't overwrite counterNo here — let it be set via cashier profile
-  //       // BillData.counterNo = "Counter No:";
+  //       BillData.counterNo = ""; // Keep it empty if not yet set
 
   //       final billSnap =
   //           await FirebaseFirestore.instance
@@ -179,6 +188,12 @@ class _BillContainerState extends ConsumerState<BillContainer> {
     try {
       print("🚀 Starting bill data load...");
 
+      // ✅ Cache ref dependencies early to avoid access after widget disposal
+      final billVerificationNotifier = ref.read(
+        billVerificationProvider.notifier,
+      );
+      final profileFuture = ref.read(profileFutureProvider.future);
+      final selectedAdminUid = ref.read(selectedAdminUidProvider);
       final state = ref.read(billVerificationProvider);
       final userId = state.userId;
 
@@ -186,7 +201,6 @@ class _BillContainerState extends ConsumerState<BillContainer> {
       final isCustomer = currentUser != null && currentUser.uid == userId;
 
       if (userId.isNotEmpty || isCustomer) {
-        // 🧾 Load bill from Firestore
         final billSnapshot =
             await FirebaseFirestore.instance
                 .collection('users')
@@ -203,7 +217,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
         final data = billSnapshot.data()!;
         print("📦 Firestore Bill Data: ${data.keys}");
 
-        // ✅ Load products stored as map with product name as key
+        // ✅ Load products
         final rawProducts = data['products'];
         if (rawProducts != null && rawProducts is Map) {
           final productsMap = Map<String, dynamic>.from(rawProducts);
@@ -217,11 +231,11 @@ class _BillContainerState extends ConsumerState<BillContainer> {
             print("  • ${p["name"]} x${p["quantity"]} @ ₹${p["finalPrice"]}");
           }
         } else {
-          print("⚠️ No valid 'products' map found in Firestore.");
+          print("⚠️ No valid 'products' map found.");
           BillData.products = [];
         }
 
-        // 🧾 Bill details
+        // ✅ Assign bill details
         BillData.customerName = data['customerName'] ?? '';
         BillData.customerMobile = data['customerMobile'] ?? '';
         BillData.martName = data['martName'] ?? '';
@@ -236,11 +250,16 @@ class _BillContainerState extends ConsumerState<BillContainer> {
         BillData.martGSTIN = data['martGSTIN'] ?? '';
         BillData.martCIN = data['martCIN'] ?? '';
 
+        // ✅ Handle seal status
+        final sealStr = data['sealStatus'] ?? 'none';
+        final seal = BillSealStatusExtension.fromString(sealStr);
+        billVerificationNotifier.setSealStatus(seal);
+
         print("✅ Bill loaded for ${isCustomer ? "customer" : "cashier"} app.");
       } else {
-        // 📦 Customer flow when bill is being generated
-        final customerProfile = await ref.read(profileFutureProvider.future);
-        final adminUid = ref.read(selectedAdminUidProvider) as String?;
+        // 📦 New bill generation path (customer side)
+        final customerProfile = await profileFuture;
+        final adminUid = selectedAdminUid;
 
         print("🔐 Admin UID: $adminUid");
         print("👤 Customer Profile: $customerProfile");
@@ -255,17 +274,17 @@ class _BillContainerState extends ConsumerState<BillContainer> {
                 .collection("users")
                 .doc(adminUid)
                 .get();
-        final adminProfile = adminDoc.data();
 
+        final adminProfile = adminDoc.data();
         if (adminProfile == null) {
           print("❌ Admin profile not found for UID: $adminUid");
           return;
         }
 
-        // Set from profile
+        // ✅ Set default bill fields
         BillData.customerName = customerProfile["fullName"] ?? "";
         BillData.customerMobile = customerProfile["phoneNumber"] ?? "";
-        BillData.cashier = ""; // Will be overwritten if fetched from bill
+        BillData.cashier = "";
         final martAddress = adminProfile["martAddress"] ?? "";
         final martState = adminProfile["martState"] ?? "";
         BillData.martName = adminProfile["martName"] ?? "";
@@ -277,7 +296,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
         final now = DateTime.now();
         BillData.billDate = DateFormat('dd-MM-yyyy').format(now);
         BillData.session = DateFormat('hh:mm a').format(now);
-        BillData.counterNo = ""; // Keep it empty if not yet set
+        BillData.counterNo = "";
 
         final billSnap =
             await FirebaseFirestore.instance
@@ -287,7 +306,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
                 .get();
 
         BillData.billNo = "BILL#${billSnap.docs.length + 1}";
-        print("✅ Customer generated Bill No: ${BillData.billNo}");
+        print("✅ Generated new Bill No: ${BillData.billNo}");
       }
 
       if (mounted) setState(() {});
@@ -339,9 +358,10 @@ class _BillContainerState extends ConsumerState<BillContainer> {
         "martContact": BillData.martContact,
         "martGSTIN": BillData.martGSTIN,
         "martCIN": BillData.martCIN,
-        "uid": customerUid, // 🔐 Storing UID for traceability
-        "cashier": BillData.cashier, // ✅ Newly added
-        "cashierCounter": BillData.counterNo, // ✅ Newly added
+        "uid": customerUid,
+        "cashier": BillData.cashier,
+        "cashierCounter": BillData.counterNo,
+        "sealStatus": BillData.sealStatus, // ✅ Added this line
       };
 
       await FirebaseFirestore.instance
@@ -368,6 +388,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
 
       await Future.delayed(const Duration(milliseconds: 300));
       await _loadBillData();
+
       print("✅ Bill and OTP saved successfully:");
       print("   - Bill No: $billNo");
       print("   - OTP: $otp");
@@ -387,6 +408,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
     double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
     double bottomPadding = widget.isKeyboardOpen ? keyboardHeight : 0;
 
+    // final sealStatus = ref.watch(billVerificationProvider).sealStatus;
     return Stack(
       children: [
         AnimatedPositioned(
@@ -443,15 +465,25 @@ class _BillContainerState extends ConsumerState<BillContainer> {
                             const SizedBox(height: 40),
                           ],
                         ),
-                        if (sealStatus != BillSealStatus.none)
-                          Center(
-                            child: VerificationStamp(
-                              type:
-                                  sealStatus == BillSealStatus.sealed
-                                      ? StampType.verified
-                                      : StampType.rejected,
-                              martName: BillData.martName,
-                            ),
+
+                        // if (sealStatus != BillSealStatus.none)
+                        //   Center(
+                        //     child: VerificationStamp(
+                        //       type:
+                        //           sealStatus == BillSealStatus.sealed
+                        //               ? StampType.verified
+                        //               : StampType.rejected,
+                        //       martName: BillData.martName,
+                        //     ),
+                        //   ),
+                        if (sealStatus == BillSealStatus.sealed ||
+                            sealStatus == BillSealStatus.rejected)
+                          VerificationStamp(
+                            type:
+                                sealStatus == BillSealStatus.sealed
+                                    ? StampType.verified
+                                    : StampType.rejected,
+                            martName: BillData.martName,
                           ),
                       ],
                     ),
@@ -557,8 +589,69 @@ class _BillContainerState extends ConsumerState<BillContainer> {
     );
   }
 
+  // Widget _buildCustomerDetails() {
+  //   // Safely parse the session time
+  //   int hour;
+  //   try {
+  //     if (BillData.session.isNotEmpty) {
+  //       final time = DateFormat('hh:mm a').parse(BillData.session);
+  //       hour = time.hour;
+  //     } else {
+  //       hour = DateTime.now().hour;
+  //     }
+  //   } catch (e) {
+  //     debugPrint("❌ Error parsing BillData.session: $e");
+  //     hour = DateTime.now().hour; // fallback
+  //   }
+
+  //   String sessionLabel;
+  //   if (hour >= 5 && hour < 12) {
+  //     sessionLabel = "🌅 Morning";
+  //   } else if (hour >= 12 && hour < 17) {
+  //     sessionLabel = "☀️ Afternoon";
+  //   } else if (hour >= 17 && hour < 21) {
+  //     sessionLabel = "🌇 Evening";
+  //   } else {
+  //     sessionLabel = "🌙 Night";
+  //   }
+
+  //   return FutureBuilder<void>(
+  //     future: CashierInfoHandler.updateCashierAndCounterIfMissing(ref),
+  //     builder: (context, snapshot) {
+  //       return Column(
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           Text(
+  //             "🧾 ${BillData.billNo}",
+  //             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+  //           ),
+  //           Text(
+  //             "🪑 ${BillData.counterNo}",
+  //             style: const TextStyle(fontSize: 15),
+  //           ),
+  //           Text(
+  //             "${BillData.billDate}  |  🕒 ${BillData.session}  |  Session: $sessionLabel",
+  //             style: const TextStyle(fontSize: 15),
+  //           ),
+  //           const SizedBox(height: 5),
+  //           Text(
+  //             BillData.customerName,
+  //             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+  //           ),
+  //           Text(BillData.customerMobile, style: const TextStyle(fontSize: 15)),
+  //           const SizedBox(height: 5),
+  //           Text(
+  //             "Cashier: ${BillData.cashier}",
+  //             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+  //           ),
+  //         ],
+  //       );
+  //     },
+  //   );
+  // }
+
   Widget _buildCustomerDetails() {
-    // Safely parse the session time
+    // Parse session time
     int hour;
     try {
       if (BillData.session.isNotEmpty) {
@@ -569,45 +662,50 @@ class _BillContainerState extends ConsumerState<BillContainer> {
       }
     } catch (e) {
       debugPrint("❌ Error parsing BillData.session: $e");
-      hour = DateTime.now().hour; // fallback
+      hour = DateTime.now().hour;
     }
 
-    String sessionLabel;
-    if (hour >= 5 && hour < 12) {
-      sessionLabel = "🌅 Morning";
-    } else if (hour >= 12 && hour < 17) {
-      sessionLabel = "☀️ Afternoon";
-    } else if (hour >= 17 && hour < 21) {
-      sessionLabel = "🌇 Evening";
-    } else {
-      sessionLabel = "🌙 Night";
-    }
+    String sessionLabel =
+        (hour >= 5 && hour < 12)
+            ? "🌅 Morning"
+            : (hour >= 12 && hour < 17)
+            ? "☀️ Afternoon"
+            : (hour >= 17 && hour < 21)
+            ? "🌇 Evening"
+            : "🌙 Night";
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "🧾 ${BillData.billNo}",
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        Text("🪑 ${BillData.counterNo}", style: const TextStyle(fontSize: 15)),
-
-        Text(
-          "${BillData.billDate}  |  🕒 ${BillData.session}  |  Session: $sessionLabel",
-          style: const TextStyle(fontSize: 15),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          BillData.customerName,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        Text(BillData.customerMobile, style: const TextStyle(fontSize: 15)),
-        const SizedBox(height: 5),
-        Text(
-          "Cashier: ${BillData.cashier}",
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-        ),
-      ],
+    return FutureBuilder<void>(
+      future: CashierInfoHandler.updateCashierAndCounterIfMissing(ref),
+      builder: (context, snapshot) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "🧾 ${BillData.billNo}",
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              "🪑 ${BillData.counterNo}",
+              style: const TextStyle(fontSize: 15),
+            ),
+            Text(
+              "${BillData.billDate}  |  🕒 ${BillData.session}  |  Session: $sessionLabel",
+              style: const TextStyle(fontSize: 15),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              BillData.customerName,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            Text(BillData.customerMobile, style: const TextStyle(fontSize: 15)),
+            const SizedBox(height: 5),
+            Text(
+              "Cashier: ${BillData.cashier}",
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -766,25 +864,59 @@ class _BillContainerState extends ConsumerState<BillContainer> {
           "₹${balance.toStringAsFixed(2)}",
           isBold: true,
         ),
+
+        // OtpHandler(
+        //   billNo: BillData.billNo,
+        //   onOtpReceived: (otp, amount) async {
+        //     setState(() {
+        //       _billOtp = otp;
+        //       BillData.amountPaid = amount;
+        //       _paymentVerified = true;
+        //       _waitingForOtp = false;
+        //     });
+        //     // ✅ Call save function after receiving OTP
+        //     await saveBillToFirestore(
+        //       otp: _billOtp,
+        //       products:
+        //           widget
+        //               .billItems, // or BillData.billItems if you're using static
+        //     );
+        //     // ✅ After saving bill, wait and then reload to reflect cashier/counter
+        //     await Future.delayed(const Duration(milliseconds: 500));
+        //     await _loadBillData(); // <-- Add this line to force reload after OTP
+        //   },
+        // ),
         OtpHandler(
           billNo: BillData.billNo,
           onOtpReceived: (otp, amount) async {
+            if (!mounted) return;
+
             setState(() {
               _billOtp = otp;
               BillData.amountPaid = amount;
               _paymentVerified = true;
               _waitingForOtp = false;
             });
-            // ✅ Call save function after receiving OTP
+
+            final currentUser = FirebaseAuth.instance.currentUser;
+            if (currentUser != null) {
+              BillData.customerId = currentUser.uid;
+            }
+
             await saveBillToFirestore(
               otp: _billOtp,
-              products:
-                  widget
-                      .billItems, // or BillData.billItems if you're using static
+              products: widget.billItems,
             );
-            // ✅ After saving bill, wait and then reload to reflect cashier/counter
+
             await Future.delayed(const Duration(milliseconds: 500));
-            await _loadBillData(); // <-- Add this line to force reload after OTP
+
+            if (!mounted) return;
+
+            final localRef = ref; // ✅ cache ref safely
+            await _loadBillData(); // will internally use localRef if needed
+            await CashierInfoHandler.updateCashierAndCounterIfMissing(localRef);
+
+            if (mounted) setState(() {}); // ensure UI updates after async
           },
         ),
       ],
