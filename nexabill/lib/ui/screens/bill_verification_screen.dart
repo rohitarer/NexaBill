@@ -63,14 +63,17 @@ class _BillVerificationScreenState
           return;
         }
 
-        final billSnapshot =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(userId)
-                .collection('my_bills')
-                .doc(billNo)
-                .get();
+        // ✅ Assign global values
+        BillData.customerId = userId;
+        BillData.billNo = billNo;
 
+        final billRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('my_bills')
+            .doc(billNo);
+
+        final billSnapshot = await billRef.get();
         if (!billSnapshot.exists) {
           debugPrint(
             "❌ Bill not found for billNo: $billNo under user: $userId",
@@ -80,7 +83,6 @@ class _BillVerificationScreenState
         }
 
         final data = billSnapshot.data()!;
-        BillData.billNo = data['billNo'] ?? '';
         final rawProducts = data['products'];
         if (rawProducts is List) {
           BillData.products = List<Map<String, dynamic>>.from(rawProducts);
@@ -93,6 +95,7 @@ class _BillVerificationScreenState
           BillData.products = [];
         }
 
+        // ✅ Assign bill details
         BillData.customerName = data['customerName'] ?? '';
         BillData.customerMobile = data['customerMobile'] ?? '';
         BillData.martName = data['martName'] ?? '';
@@ -104,7 +107,12 @@ class _BillVerificationScreenState
         BillData.martContact = data['martContact'] ?? '';
         BillData.martGSTIN = data['martGSTIN'] ?? '';
         BillData.martCIN = data['martCIN'] ?? '';
+        BillData.sealStatus = data['sealStatus'] ?? 'none';
 
+        final seal = BillSealStatusExtension.fromString(BillData.sealStatus);
+        ref.read(billVerificationProvider.notifier).setSealStatus(seal);
+
+        // ✅ Get cashier info
         final cashierUid = FirebaseAuth.instance.currentUser?.uid;
         if (cashierUid != null) {
           final cashierDoc =
@@ -112,6 +120,7 @@ class _BillVerificationScreenState
                   .collection('users')
                   .doc(cashierUid)
                   .get();
+
           final cashierData = cashierDoc.data();
           if (cashierData != null) {
             BillData.cashier = cashierData['fullName'] ?? 'Cashier';
@@ -122,16 +131,25 @@ class _BillVerificationScreenState
                     ? counterNo.toString().trim()
                     : "Counter Unknown";
 
-            // 📝 Update customer bill with cashier info
+            final updateData = {
+              'cashier': BillData.cashier,
+              'counterNo': BillData.counterNo,
+            };
+
+            // ✅ Update in customer’s bill
+            await billRef.update(updateData);
+
+            // ✅ Mirror data to cashier’s my_bills
             await FirebaseFirestore.instance
                 .collection('users')
-                .doc(userId)
+                .doc(cashierUid)
                 .collection('my_bills')
                 .doc(billNo)
-                .update({
-                  'cashier': BillData.cashier,
-                  'counterNo': BillData.counterNo,
-                });
+                .set({
+                  ...data,
+                  ...updateData,
+                  'sealStatus': BillData.sealStatus,
+                }, SetOptions(merge: true));
           }
         }
 

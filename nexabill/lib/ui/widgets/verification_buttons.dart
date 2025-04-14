@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:nexabill/core/theme.dart';
 import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nexabill/data/bill_data.dart';
 import 'package:nexabill/providers/bill_verification_provider.dart';
 import 'package:nexabill/ui/widgets/cahier_info_handler.dart';
 
@@ -86,33 +88,47 @@ class _VerificationButtonsState extends ConsumerState<VerificationButtons>
     final state = widget.ref.read(billVerificationProvider);
     final notifier = widget.ref.read(billVerificationProvider.notifier);
 
-    if (state.sealStatus == BillSealStatus.sealed) {
-      debugPrint(
-        'Verified button pressed AGAIN -> Already sealed. Exiting without changing stamp.',
-      );
-      notifier.reset();
-    } else {
+    setState(() {
+      _isAccepted = true;
+      _isRejected = false;
+    });
+
+    if (state.sealStatus != BillSealStatus.sealed) {
       debugPrint('Verified button pressed FIRST TIME -> Apply verified stamp.');
-      setState(() {
-        _isAccepted = true;
-        _isRejected = false;
-      });
       notifier.sealBill();
-      await CashierInfoHandler.saveSealStatus("sealed");
-      _shineController.forward(from: 0.0);
-      _starController.forward(from: 0.0);
+    } else {
+      debugPrint('Verified button pressed AGAIN -> Already sealed.');
     }
+
+    // Ensure customerId is set
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && BillData.customerId.isEmpty) {
+      BillData.customerId = user.uid;
+    }
+
+    // Always sync sealStatus in case it was not saved before
+    await CashierInfoHandler.saveSealStatus(BillSealStatus.sealed);
+
+    _shineController.forward(from: 0.0);
+    _starController.forward(from: 0.0);
   }
 
   void _handleReject() async {
     final notifier = widget.ref.read(billVerificationProvider.notifier);
-    debugPrint('Reject button pressed -> Apply rejected stamp.');
+
     setState(() {
       _isRejected = true;
       _isAccepted = false;
     });
+
     notifier.rejectBill();
-    await CashierInfoHandler.saveSealStatus("rejected");
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && BillData.customerId.isEmpty) {
+      BillData.customerId = user.uid;
+    }
+
+    await CashierInfoHandler.saveSealStatus(BillSealStatus.rejected);
   }
 
   List<Widget> _buildStars() {
@@ -149,7 +165,6 @@ class _VerificationButtonsState extends ConsumerState<VerificationButtons>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // ✅ Accept Button - Left center or move to right if rejected
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 600),
                   curve: _isRejected ? Curves.bounceOut : Curves.easeOutBack,
@@ -191,8 +206,6 @@ class _VerificationButtonsState extends ConsumerState<VerificationButtons>
                     ),
                   ),
                 ),
-
-                // ❌ Reject Button - Right center or move to center if rejected
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 600),
                   curve: Curves.bounceOut,

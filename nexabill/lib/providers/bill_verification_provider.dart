@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nexabill/data/bill_data.dart';
 
 enum BillSealStatus { none, sealed, rejected }
 
-// ✅ Extension to convert enum ↔ string
+// ✅ Enum-to-string and string-to-enum conversion
 extension BillSealStatusExtension on BillSealStatus {
   String get value {
     switch (this) {
@@ -66,13 +67,18 @@ class BillVerificationNotifier extends StateNotifier<BillVerificationState> {
       );
 
   void showBill({required String otp, required String userId}) {
+    debugPrint('Bill shown with OTP: $otp for userId: $userId');
     state = state.copyWith(
       isVisible: true,
       sealStatus: BillSealStatus.none,
       otpCode: otp,
       userId: userId,
     );
-    debugPrint('Bill shown with OTP: $otp for userId: $userId');
+
+    // Set global BillData values
+    BillData.customerId = userId;
+    BillData.otp = otp;
+    BillData.sealStatus = BillSealStatus.none.value;
   }
 
   void sealBill() {
@@ -81,25 +87,29 @@ class BillVerificationNotifier extends StateNotifier<BillVerificationState> {
       return;
     }
     debugPrint('Sealing bill...');
+    BillData.sealStatus = BillSealStatus.sealed.value; // ✅ update global
     state = state.copyWith(sealStatus: BillSealStatus.sealed);
   }
 
   void rejectBill() {
     debugPrint('Rejecting bill...');
+    BillData.sealStatus = BillSealStatus.rejected.value; // ✅ update global
     state = state.copyWith(sealStatus: BillSealStatus.rejected);
+
     Future.delayed(const Duration(seconds: 2), () {
       debugPrint('Auto-hiding rejected bill.');
       state = BillVerificationState(
         isVisible: false,
         sealStatus: BillSealStatus.none,
       );
+      BillData.sealStatus = BillSealStatus.none.value; // ✅ clear global
     });
   }
 
-  // ✅ Use this when reading from Firestore
   void setSealStatus(BillSealStatus sealStatus) {
     debugPrint('Setting seal status from Firestore: $sealStatus');
     state = state.copyWith(sealStatus: sealStatus);
+    BillData.sealStatus = sealStatus.value; // ✅ sync with Firestore load
   }
 
   void reset() {
@@ -108,6 +118,7 @@ class BillVerificationNotifier extends StateNotifier<BillVerificationState> {
       isVisible: false,
       sealStatus: BillSealStatus.none,
     );
+    BillData.sealStatus = BillSealStatus.none.value;
   }
 }
 

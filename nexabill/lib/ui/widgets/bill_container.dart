@@ -62,133 +62,10 @@ class _BillContainerState extends ConsumerState<BillContainer> {
     // if (mounted) setState(() {});
   }
 
-  // Future<void> _loadBillData() async {
-  //   try {
-  //     print("🚀 Starting bill data load...");
-
-  //     final state = ref.read(billVerificationProvider);
-  //     final userId = state.userId;
-
-  //     final currentUser = FirebaseAuth.instance.currentUser;
-  //     final isCustomer = currentUser != null && currentUser.uid == userId;
-
-  //     if (userId.isNotEmpty || isCustomer) {
-  //       // 🧾 Load bill from Firestore
-  //       final billSnapshot =
-  //           await FirebaseFirestore.instance
-  //               .collection('users')
-  //               .doc(userId.isNotEmpty ? userId : currentUser?.uid)
-  //               .collection('my_bills')
-  //               .doc(BillData.billNo)
-  //               .get();
-
-  //       if (!billSnapshot.exists) {
-  //         print("❌ Bill not found in Firestore for OTP verification.");
-  //         return;
-  //       }
-
-  //       final data = billSnapshot.data()!;
-  //       print("📦 Firestore Bill Data: ${data.keys}");
-
-  //       // ✅ Load products stored as map with product name as key
-  //       final rawProducts = data['products'];
-  //       if (rawProducts != null && rawProducts is Map) {
-  //         final productsMap = Map<String, dynamic>.from(rawProducts);
-  //         BillData.products =
-  //             productsMap.entries
-  //                 .map((e) => Map<String, dynamic>.from(e.value))
-  //                 .toList();
-
-  //         print("🛍️ Loaded ${BillData.products.length} products:");
-  //         for (var p in BillData.products) {
-  //           print("  • ${p["name"]} x${p["quantity"]} @ ₹${p["finalPrice"]}");
-  //         }
-  //       } else {
-  //         print("⚠️ No valid 'products' map found in Firestore.");
-  //         BillData.products = [];
-  //       }
-
-  //       // 🧾 Bill details
-  //       BillData.customerName = data['customerName'] ?? '';
-  //       BillData.customerMobile = data['customerMobile'] ?? '';
-  //       BillData.martName = data['martName'] ?? '';
-  //       BillData.martAddress = data['martAddress'] ?? '';
-  //       BillData.amountPaid = (data['amountPaid'] ?? 0).toDouble();
-  //       BillData.otp = data['otp'] ?? '';
-  //       BillData.billDate = data['billDate'] ?? '';
-  //       BillData.session = data['session'] ?? '';
-  //       BillData.cashier = data['cashier'] ?? '';
-  //       BillData.counterNo = data['counterNo'] ?? '';
-  //       BillData.martContact = data['martContact'] ?? '';
-  //       BillData.martGSTIN = data['martGSTIN'] ?? '';
-  //       BillData.martCIN = data['martCIN'] ?? '';
-
-  //       print("✅ Bill loaded for ${isCustomer ? "customer" : "cashier"} app.");
-  //     } else {
-  //       // 📦 Customer flow when bill is being generated
-  //       final customerProfile = await ref.read(profileFutureProvider.future);
-  //       final adminUid = ref.read(selectedAdminUidProvider) as String?;
-
-  //       print("🔐 Admin UID: $adminUid");
-  //       print("👤 Customer Profile: $customerProfile");
-
-  //       if (adminUid == null || customerProfile.isEmpty) {
-  //         print("⚠️ Missing admin UID or customer profile.");
-  //         return;
-  //       }
-
-  //       final adminDoc =
-  //           await FirebaseFirestore.instance
-  //               .collection("users")
-  //               .doc(adminUid)
-  //               .get();
-  //       final adminProfile = adminDoc.data();
-
-  //       if (adminProfile == null) {
-  //         print("❌ Admin profile not found for UID: $adminUid");
-  //         return;
-  //       }
-
-  //       // Set from profile
-  //       BillData.customerName = customerProfile["fullName"] ?? "";
-  //       BillData.customerMobile = customerProfile["phoneNumber"] ?? "";
-  //       BillData.cashier = ""; // Will be overwritten if fetched from bill
-  //       final martAddress = adminProfile["martAddress"] ?? "";
-  //       final martState = adminProfile["martState"] ?? "";
-  //       BillData.martName = adminProfile["martName"] ?? "";
-  //       BillData.martAddress = "$martAddress, $martState, India";
-  //       BillData.martContact = adminProfile["martContact"] ?? "";
-  //       BillData.martGSTIN = adminProfile["martGstin"] ?? "";
-  //       BillData.martCIN = adminProfile["martCin"] ?? "";
-
-  //       final now = DateTime.now();
-  //       BillData.billDate = DateFormat('dd-MM-yyyy').format(now);
-  //       BillData.session = DateFormat('hh:mm a').format(now);
-  //       BillData.counterNo = ""; // Keep it empty if not yet set
-
-  //       final billSnap =
-  //           await FirebaseFirestore.instance
-  //               .collection("bills")
-  //               .doc(adminUid)
-  //               .collection("all_bills")
-  //               .get();
-
-  //       BillData.billNo = "BILL#${billSnap.docs.length + 1}";
-  //       print("✅ Customer generated Bill No: ${BillData.billNo}");
-  //     }
-
-  //     if (mounted) setState(() {});
-  //   } catch (e, st) {
-  //     print("❌ Error in _loadBillData: $e");
-  //     print("📍 StackTrace: $st");
-  //   }
-  // }
-
   Future<void> _loadBillData() async {
     try {
       print("🚀 Starting bill data load...");
 
-      // ✅ Cache ref dependencies early to avoid access after widget disposal
       final billVerificationNotifier = ref.read(
         billVerificationProvider.notifier,
       );
@@ -198,13 +75,17 @@ class _BillContainerState extends ConsumerState<BillContainer> {
       final userId = state.userId;
 
       final currentUser = FirebaseAuth.instance.currentUser;
-      final isCustomer = currentUser != null && currentUser.uid == userId;
+      final customerId =
+          BillData.customerId.isNotEmpty ? BillData.customerId : userId;
 
-      if (userId.isNotEmpty || isCustomer) {
+      // ✅ Ensure BillData.customerId is globally available
+      BillData.customerId = customerId ?? "";
+
+      if (customerId != null && customerId.isNotEmpty) {
         final billSnapshot =
             await FirebaseFirestore.instance
                 .collection('users')
-                .doc(userId.isNotEmpty ? userId : currentUser?.uid)
+                .doc(customerId)
                 .collection('my_bills')
                 .doc(BillData.billNo)
                 .get();
@@ -235,7 +116,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
           BillData.products = [];
         }
 
-        // ✅ Assign bill details
+        // ✅ Assign bill fields
         BillData.customerName = data['customerName'] ?? '';
         BillData.customerMobile = data['customerMobile'] ?? '';
         BillData.martName = data['martName'] ?? '';
@@ -249,15 +130,15 @@ class _BillContainerState extends ConsumerState<BillContainer> {
         BillData.martContact = data['martContact'] ?? '';
         BillData.martGSTIN = data['martGSTIN'] ?? '';
         BillData.martCIN = data['martCIN'] ?? '';
+        BillData.sealStatus = data['sealStatus'] ?? 'none';
 
-        // ✅ Handle seal status
-        final sealStr = data['sealStatus'] ?? 'none';
-        final seal = BillSealStatusExtension.fromString(sealStr);
+        // ✅ Sync with provider
+        final seal = BillSealStatusExtension.fromString(BillData.sealStatus);
         billVerificationNotifier.setSealStatus(seal);
 
-        print("✅ Bill loaded for ${isCustomer ? "customer" : "cashier"} app.");
+        print("✅ Bill loaded from customer account.");
       } else {
-        // 📦 New bill generation path (customer side)
+        // 📦 New bill creation flow (customer)
         final customerProfile = await profileFuture;
         final adminUid = selectedAdminUid;
 
@@ -281,7 +162,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
           return;
         }
 
-        // ✅ Set default bill fields
+        // Assign default
         BillData.customerName = customerProfile["fullName"] ?? "";
         BillData.customerMobile = customerProfile["phoneNumber"] ?? "";
         BillData.cashier = "";
@@ -321,27 +202,26 @@ class _BillContainerState extends ConsumerState<BillContainer> {
     required List<Map<String, dynamic>> products,
   }) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception("User not logged in");
-
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) throw Exception("User not logged in");
       if (otp == null) {
         debugPrint("⚠️ OTP is null. Cannot save.");
         return;
       }
 
-      final String customerUid = user.uid;
+      final String customerUid =
+          BillData.customerId.isNotEmpty
+              ? BillData.customerId
+              : currentUser.uid;
+      final String cashierUid = currentUser.uid;
       final String billNo = BillData.billNo;
       final timestamp = DateTime.now().toIso8601String();
 
-      debugPrint("🧾 Products length: ${products.length}");
-
-      // 🔄 Convert product list to map using product name as key
       final Map<String, dynamic> productMap = {
         for (var item in products)
           item['name']: Map<String, dynamic>.from(item),
       };
 
-      // 🔹 Save bill in customer's profile
       final billData = {
         "products": productMap,
         "amountPaid": BillData.amountPaid,
@@ -361,9 +241,10 @@ class _BillContainerState extends ConsumerState<BillContainer> {
         "uid": customerUid,
         "cashier": BillData.cashier,
         "cashierCounter": BillData.counterNo,
-        "sealStatus": BillData.sealStatus, // ✅ Added this line
+        "sealStatus": BillData.sealStatus,
       };
 
+      // ✅ Save to customer's my_bills
       await FirebaseFirestore.instance
           .collection("users")
           .doc(customerUid)
@@ -371,7 +252,17 @@ class _BillContainerState extends ConsumerState<BillContainer> {
           .doc(billNo)
           .set(billData);
 
-      // 🔹 Save OTP mapping in global "otps" collection
+      // ✅ Save to cashier's my_bills
+      if (cashierUid != customerUid) {
+        await FirebaseFirestore.instance
+            .collection("users")
+            .doc(cashierUid)
+            .collection("my_bills")
+            .doc(billNo)
+            .set(billData);
+      }
+
+      // ✅ Save to global otps collection
       final otpData = {
         "otp": otp,
         "uid": customerUid,
@@ -392,7 +283,8 @@ class _BillContainerState extends ConsumerState<BillContainer> {
       print("✅ Bill and OTP saved successfully:");
       print("   - Bill No: $billNo");
       print("   - OTP: $otp");
-      print("   - UID: $customerUid");
+      print("   - Customer UID: $customerUid");
+      print("   - Cashier UID: $cashierUid");
     } catch (e, st) {
       debugPrint("❌ Error saving bill: $e");
       debugPrint("📍 Stack Trace: $st");
