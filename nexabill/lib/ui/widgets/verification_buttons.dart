@@ -8,14 +8,10 @@ import 'package:nexabill/providers/bill_verification_provider.dart';
 import 'package:nexabill/ui/widgets/cahier_info_handler.dart';
 
 class VerificationButtons extends ConsumerStatefulWidget {
-  final WidgetRef ref;
   final String martName;
+  final VoidCallback? onPop; // 👈 Callback from parent
 
-  const VerificationButtons({
-    super.key,
-    required this.ref,
-    required this.martName,
-  });
+  const VerificationButtons({super.key, required this.martName, this.onPop});
 
   @override
   ConsumerState<VerificationButtons> createState() =>
@@ -35,6 +31,7 @@ class _VerificationButtonsState extends ConsumerState<VerificationButtons>
 
   bool _isAccepted = false;
   bool _isRejected = false;
+  bool _hasPopped = false;
 
   @override
   void initState() {
@@ -44,12 +41,10 @@ class _VerificationButtonsState extends ConsumerState<VerificationButtons>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
-
     _shineController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     );
-
     _starController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -85,36 +80,48 @@ class _VerificationButtonsState extends ConsumerState<VerificationButtons>
   }
 
   void _handleAccept() async {
-    final state = widget.ref.read(billVerificationProvider);
-    final notifier = widget.ref.read(billVerificationProvider.notifier);
+    final state = ref.read(billVerificationProvider);
+    final notifier = ref.read(billVerificationProvider.notifier);
 
     setState(() {
       _isAccepted = true;
       _isRejected = false;
     });
 
-    if (state.sealStatus != BillSealStatus.sealed) {
-      debugPrint('Verified button pressed FIRST TIME -> Apply verified stamp.');
-      notifier.sealBill();
-    } else {
-      debugPrint('Verified button pressed AGAIN -> Already sealed.');
-    }
-
-    // Ensure customerId is set
     final user = FirebaseAuth.instance.currentUser;
     if (user != null && BillData.customerId.isEmpty) {
       BillData.customerId = user.uid;
     }
 
-    // Always sync sealStatus in case it was not saved before
-    await CashierInfoHandler.saveSealStatus(BillSealStatus.sealed);
+    if (state.sealStatus != BillSealStatus.sealed) {
+      debugPrint('✅ Verified button FIRST press → Apply verified stamp.');
+      await notifier.sealBill();
+      await CashierInfoHandler.saveSealStatus(BillSealStatus.sealed);
 
-    _shineController.forward(from: 0.0);
-    _starController.forward(from: 0.0);
+      _shineController.forward(from: 0.0);
+      _starController.forward(from: 0.0);
+
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (!_hasPopped) {
+          _hasPopped = true;
+          widget.onPop?.call(); // ✅ handler call
+          debugPrint("🚪 Verified (first press) → Handler called.");
+        }
+      });
+    } else {
+      debugPrint('✅ Verified button SECOND press → Already sealed.');
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (!_hasPopped) {
+          _hasPopped = true;
+          widget.onPop?.call(); // ✅ handler call
+          debugPrint("🚪 Verified (second press) → Handler called.");
+        }
+      });
+    }
   }
 
   void _handleReject() async {
-    final notifier = widget.ref.read(billVerificationProvider.notifier);
+    final notifier = ref.read(billVerificationProvider.notifier);
 
     setState(() {
       _isRejected = true;
@@ -129,15 +136,23 @@ class _VerificationButtonsState extends ConsumerState<VerificationButtons>
     }
 
     await CashierInfoHandler.saveSealStatus(BillSealStatus.rejected);
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!_hasPopped) {
+        _hasPopped = true;
+        widget.onPop?.call(); // ✅ handler call
+        debugPrint("⛔ Rejected → Handler called to exit.");
+      }
+    });
   }
 
   List<Widget> _buildStars() {
     return List.generate(6, (index) {
-      final double angle = (pi / 3) * index;
+      final angle = (pi / 3) * index;
       return AnimatedBuilder(
         animation: _starController,
-        builder: (context, child) {
-          final double radius = _starController.value * 50;
+        builder: (_, __) {
+          final radius = _starController.value * 50;
           return Positioned(
             top: 30 - cos(angle) * radius,
             left: 30 + sin(angle) * radius,
@@ -153,7 +168,8 @@ class _VerificationButtonsState extends ConsumerState<VerificationButtons>
 
   @override
   Widget build(BuildContext context) {
-    final double screenWidth = MediaQuery.of(context).size.width;
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return SlideTransition(
       position: _slideAnimation,
       child: FadeTransition(

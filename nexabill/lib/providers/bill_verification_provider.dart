@@ -83,7 +83,17 @@ class BillVerificationNotifier extends StateNotifier<BillVerificationState> {
     BillData.sealStatus = BillSealStatus.none.value;
   }
 
-  void sealBill() {
+  // void sealBill() {
+  //   if (state.sealStatus == BillSealStatus.sealed) {
+  //     debugPrint('Already sealed. Skipping reseal.');
+  //     return;
+  //   }
+  //   debugPrint('Sealing bill...');
+  //   BillData.sealStatus = BillSealStatus.sealed.value;
+  //   state = state.copyWith(sealStatus: BillSealStatus.sealed);
+  // }
+
+  Future<void> sealBill() async {
     if (state.sealStatus == BillSealStatus.sealed) {
       debugPrint('Already sealed. Skipping reseal.');
       return;

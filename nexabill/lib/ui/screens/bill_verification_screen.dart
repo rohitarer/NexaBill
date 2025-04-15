@@ -260,7 +260,12 @@ class _BillVerificationScreenState
             bottom: 20,
             left: 0,
             right: 0,
-            child: VerificationButtons(ref: ref, martName: BillData.martName),
+            child: VerificationButtons(
+              martName: BillData.martName,
+              onPop: () {
+                ref.read(billVerificationProvider.notifier).reset();
+              },
+            ),
           ),
       ],
     );

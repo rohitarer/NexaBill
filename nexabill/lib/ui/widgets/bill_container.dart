@@ -36,27 +36,44 @@ class _BillContainerState extends ConsumerState<BillContainer> {
   bool _paymentVerified = false;
   // bool _newOtpReceived = false;
   bool _waitingForOtp = false;
+  bool _hasPopped = false;
 
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   Future.microtask(() async {
-  //     _resetPaymentState();
-  //     await _loadBillData();
-  //   });
-  //   Future.microtask(() => BillData.reloadCashierAndCounterIfOtpVerified(ref));
-  // }
+  // late ProviderSubscription<BillVerificationState> _sealListener;
+
   @override
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      debugPrint("📍 Calling _loadBillData from initState");
-      await _loadBillData(); // <--- ensures subscription
-    });
+    // // ✅ Listen to sealStatus changes correctly
+    // _sealListener = ref.listenManual<BillVerificationState>(
+    //   billVerificationProvider,
+    //   (prev, next) {
+    //     debugPrint(
+    //       "👂 Manual Listening: ${prev?.sealStatus} → ${next.sealStatus}",
+    //     );
+    //     if ((next.sealStatus == BillSealStatus.sealed ||
+    //             next.sealStatus == BillSealStatus.rejected) &&
+    //         !_hasPopped &&
+    //         mounted) {
+    //       _hasPopped = true;
+    //       Future.delayed(const Duration(seconds: 2), () {
+    //         if (mounted) {
+    //           Navigator.of(context, rootNavigator: true).pop();
+    //           debugPrint("🚪 Auto-exit from listener.");
+    //         }
+    //       });
+    //     }
+    //   },
+    // );
 
-    Future.microtask(() => BillData.reloadCashierAndCounterIfOtpVerified(ref));
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadBillData());
   }
+
+  // @override
+  // void dispose() {
+  //   _sealListener.close(); // ✅ Cleanup
+  //   super.dispose();
+  // }
 
   void _resetPaymentState() {
     BillData.amountPaid = 0.0;
@@ -66,30 +83,187 @@ class _BillContainerState extends ConsumerState<BillContainer> {
     if (mounted) setState(() {});
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    Future.microtask(() => BillData.reloadCashierAndCounterIfOtpVerified(ref));
-    // if (mounted) setState(() {});
-  }
+  // Future<void> _loadBillData() async {
+  //   try {
+  //     print("🚀 Starting bill data load...");
+
+  //     final billVerificationNotifier = ref.read(
+  //       billVerificationProvider.notifier,
+  //     );
+  //     final profileFuture = ref.read(profileFutureProvider.future);
+  //     final selectedAdminUid = ref.read(selectedAdminUidProvider);
+  //     final state = ref.read(billVerificationProvider);
+  //     final userId = state.userId;
+
+  //     final currentUser = FirebaseAuth.instance.currentUser;
+  //     final customerId =
+  //         BillData.customerId.isNotEmpty ? BillData.customerId : userId;
+
+  //     // ✅ Ensure BillData.customerId is globally available
+  //     BillData.customerId = customerId ?? "";
+
+  //     if (customerId != null &&
+  //         customerId.isNotEmpty &&
+  //         BillData.billNo.isNotEmpty) {
+  //       debugPrint(
+  //         "📡 Subscribing to bill stream for $customerId → ${BillData.billNo}",
+  //       );
+
+  //       final billStream =
+  //           FirebaseFirestore.instance
+  //               .collection('users')
+  //               .doc(customerId)
+  //               .collection('my_bills')
+  //               .doc(BillData.billNo)
+  //               .snapshots();
+
+  //       billStream.listen((billSnapshot) {
+  //         if (!billSnapshot.exists) {
+  //           print("❌ Bill not found in Firestore for OTP verification.");
+  //           return;
+  //         }
+
+  //         final data = billSnapshot.data()!;
+  //         print("📦 Firestore Bill Data Keys: ${data.keys}");
+
+  //         // ✅ Load products
+  //         final rawProducts = data['products'];
+  //         if (rawProducts != null && rawProducts is Map) {
+  //           final productsMap = Map<String, dynamic>.from(rawProducts);
+  //           BillData.products =
+  //               productsMap.entries
+  //                   .map((e) => Map<String, dynamic>.from(e.value))
+  //                   .toList();
+
+  //           print("🛍️ Loaded ${BillData.products.length} products:");
+  //           for (var p in BillData.products) {
+  //             print("  • ${p["name"]} x${p["quantity"]} @ ₹${p["finalPrice"]}");
+  //           }
+  //         } else {
+  //           print("⚠️ No valid 'products' map found.");
+  //           BillData.products = [];
+  //         }
+
+  //         // ✅ Assign bill fields
+  //         BillData.customerName = data['customerName'] ?? '';
+  //         BillData.customerMobile = data['customerMobile'] ?? '';
+  //         BillData.martName = data['martName'] ?? '';
+  //         BillData.martAddress = data['martAddress'] ?? '';
+  //         BillData.amountPaid = (data['amountPaid'] ?? 0).toDouble();
+  //         BillData.otp = data['otp'] ?? '';
+  //         BillData.billDate = data['billDate'] ?? '';
+  //         BillData.session = data['session'] ?? '';
+  //         BillData.cashier = data['cashier'] ?? '';
+  //         BillData.counterNo = data['counterNo'] ?? '';
+  //         BillData.martContact = data['martContact'] ?? '';
+  //         BillData.martGSTIN = data['martGSTIN'] ?? '';
+  //         BillData.martCIN = data['martCIN'] ?? '';
+  //         BillData.sealStatus = data['sealStatus'] ?? 'none';
+
+  //         print("🔁 Firestore Seal Status (raw): '${data['sealStatus']}'");
+  //         print(
+  //           "🪧 Parsed Enum: ${BillSealStatusExtension.fromString(BillData.sealStatus)}",
+  //         );
+
+  //         // ✅ Sync with provider
+  //         final seal = BillSealStatusExtension.fromString(BillData.sealStatus);
+  //         billVerificationNotifier.setSealStatus(seal);
+
+  //         print("✅ Bill loaded from customer account. Notified state: $seal");
+
+  //         if (mounted) {
+  //           print("🧩 setState() triggered after bill stream update.");
+  //           setState(() {});
+  //         }
+  //       });
+  //     } else {
+  //       // 📦 New bill creation flow (customer)
+  //       final customerProfile = await profileFuture;
+  //       final adminUid = selectedAdminUid;
+
+  //       print("🔐 Admin UID: $adminUid");
+  //       print("👤 Customer Profile: $customerProfile");
+
+  //       if (adminUid == null || customerProfile.isEmpty) {
+  //         print("⚠️ Missing admin UID or customer profile.");
+  //         return;
+  //       }
+
+  //       final adminDoc =
+  //           await FirebaseFirestore.instance
+  //               .collection("users")
+  //               .doc(adminUid)
+  //               .get();
+
+  //       final adminProfile = adminDoc.data();
+  //       if (adminProfile == null) {
+  //         print("❌ Admin profile not found for UID: $adminUid");
+  //         return;
+  //       }
+
+  //       // Assign default
+  //       BillData.customerName = customerProfile["fullName"] ?? "";
+  //       BillData.customerMobile = customerProfile["phoneNumber"] ?? "";
+  //       BillData.cashier = "";
+  //       final martAddress = adminProfile["martAddress"] ?? "";
+  //       final martState = adminProfile["martState"] ?? "";
+  //       BillData.martName = adminProfile["martName"] ?? "";
+  //       BillData.martAddress = "$martAddress, $martState, India";
+  //       BillData.martContact = adminProfile["martContact"] ?? "";
+  //       BillData.martGSTIN = adminProfile["martGstin"] ?? "";
+  //       BillData.martCIN = adminProfile["martCin"] ?? "";
+
+  //       final now = DateTime.now();
+  //       BillData.billDate = DateFormat('dd-MM-yyyy').format(now);
+  //       BillData.session = DateFormat('hh:mm a').format(now);
+  //       BillData.counterNo = "";
+
+  //       final billSnap =
+  //           await FirebaseFirestore.instance
+  //               .collection("bills")
+  //               .doc(adminUid)
+  //               .collection("all_bills")
+  //               .get();
+
+  //       BillData.billNo = "BILL#${billSnap.docs.length + 1}";
+  //       print("✅ Generated new Bill No: ${BillData.billNo}");
+  //     }
+
+  //     if (mounted) {
+  //       print("✅ Final setState() call after full execution.");
+  //       setState(() {});
+  //     }
+  //   } catch (e, st) {
+  //     print("❌ Error in _loadBillData: $e");
+  //     print("📍 StackTrace: $st");
+  //   }
+  // }
 
   Future<void> _loadBillData() async {
     try {
+      if (!mounted) return;
       print("🚀 Starting bill data load...");
 
-      final billVerificationNotifier = ref.read(
-        billVerificationProvider.notifier,
-      );
-      final profileFuture = ref.read(profileFutureProvider.future);
-      final selectedAdminUid = ref.read(selectedAdminUidProvider);
-      final state = ref.read(billVerificationProvider);
-      final userId = state.userId;
+      // Move reads before potential widget disposal
+      late final BillVerificationNotifier billVerificationNotifier;
+      late final AsyncValue<Map<String, dynamic>> profileAsync;
+      late final String? selectedAdminUid;
+      late final BillVerificationState state;
 
+      if (mounted) {
+        billVerificationNotifier = ref.read(billVerificationProvider.notifier);
+        profileAsync = ref.read(profileFutureProvider);
+        selectedAdminUid = ref.read(selectedAdminUidProvider);
+        state = ref.read(billVerificationProvider);
+      } else {
+        return;
+      }
+
+      final userId = state.userId;
       final currentUser = FirebaseAuth.instance.currentUser;
       final customerId =
           BillData.customerId.isNotEmpty ? BillData.customerId : userId;
 
-      // ✅ Ensure BillData.customerId is globally available
       BillData.customerId = customerId ?? "";
 
       if (customerId != null &&
@@ -108,15 +282,11 @@ class _BillContainerState extends ConsumerState<BillContainer> {
                 .snapshots();
 
         billStream.listen((billSnapshot) {
-          if (!billSnapshot.exists) {
-            print("❌ Bill not found in Firestore for OTP verification.");
-            return;
-          }
+          if (!billSnapshot.exists || !mounted) return;
 
           final data = billSnapshot.data()!;
           print("📦 Firestore Bill Data Keys: ${data.keys}");
 
-          // ✅ Load products
           final rawProducts = data['products'];
           if (rawProducts != null && rawProducts is Map) {
             final productsMap = Map<String, dynamic>.from(rawProducts);
@@ -134,7 +304,6 @@ class _BillContainerState extends ConsumerState<BillContainer> {
             BillData.products = [];
           }
 
-          // ✅ Assign bill fields
           BillData.customerName = data['customerName'] ?? '';
           BillData.customerMobile = data['customerMobile'] ?? '';
           BillData.martName = data['martName'] ?? '';
@@ -150,16 +319,8 @@ class _BillContainerState extends ConsumerState<BillContainer> {
           BillData.martCIN = data['martCIN'] ?? '';
           BillData.sealStatus = data['sealStatus'] ?? 'none';
 
-          print("🔁 Firestore Seal Status (raw): '${data['sealStatus']}'");
-          print(
-            "🪧 Parsed Enum: ${BillSealStatusExtension.fromString(BillData.sealStatus)}",
-          );
-
-          // ✅ Sync with provider
           final seal = BillSealStatusExtension.fromString(BillData.sealStatus);
           billVerificationNotifier.setSealStatus(seal);
-
-          print("✅ Bill loaded from customer account. Notified state: $seal");
 
           if (mounted) {
             print("🧩 setState() triggered after bill stream update.");
@@ -167,12 +328,8 @@ class _BillContainerState extends ConsumerState<BillContainer> {
           }
         });
       } else {
-        // 📦 New bill creation flow (customer)
-        final customerProfile = await profileFuture;
+        final customerProfile = await ref.read(profileFutureProvider.future);
         final adminUid = selectedAdminUid;
-
-        print("🔐 Admin UID: $adminUid");
-        print("👤 Customer Profile: $customerProfile");
 
         if (adminUid == null || customerProfile.isEmpty) {
           print("⚠️ Missing admin UID or customer profile.");
@@ -191,7 +348,6 @@ class _BillContainerState extends ConsumerState<BillContainer> {
           return;
         }
 
-        // Assign default
         BillData.customerName = customerProfile["fullName"] ?? "";
         BillData.customerMobile = customerProfile["phoneNumber"] ?? "";
         BillData.cashier = "";
