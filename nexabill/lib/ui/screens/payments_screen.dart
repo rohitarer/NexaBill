@@ -1,5 +1,3 @@
-// payments_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nexabill/providers/payments_provider.dart';
@@ -13,7 +11,7 @@ class PaymentsScreen extends ConsumerWidget {
     final payments = ref.watch(paymentsProvider);
 
     return Scaffold(
-      // appBar: AppBar(title: const Text('Payment History'), centerTitle: true),
+      appBar: AppBar(title: const Text('Payment History'), centerTitle: true),
       body: ListView.builder(
         padding: const EdgeInsets.all(10),
         itemCount: payments.length,
@@ -104,7 +102,6 @@ class PaymentsScreen extends ConsumerWidget {
                           ),
                         );
                       },
-
                       child: const Text("View More"),
                     ),
                   ),

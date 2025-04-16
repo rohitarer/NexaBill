@@ -152,7 +152,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
         ],
       ),
 
-      drawer: const CustomDrawer(),
+      drawer: const CustomDrawer(isCustomer: true),
 
       body: _screens[_selectedIndex],
 

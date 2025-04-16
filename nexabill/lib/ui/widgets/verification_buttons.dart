@@ -79,7 +79,50 @@ class _VerificationButtonsState extends ConsumerState<VerificationButtons>
     super.dispose();
   }
 
+  // void _handleAccept() async {
+  //   final state = ref.read(billVerificationProvider);
+  //   final notifier = ref.read(billVerificationProvider.notifier);
+
+  //   setState(() {
+  //     _isAccepted = true;
+  //     _isRejected = false;
+  //   });
+
+  //   final user = FirebaseAuth.instance.currentUser;
+  //   if (user != null && BillData.customerId.isEmpty) {
+  //     BillData.customerId = user.uid;
+  //   }
+
+  //   if (state.sealStatus != BillSealStatus.sealed) {
+  //     debugPrint('✅ Verified button FIRST press → Apply verified stamp.');
+  //     await notifier.sealBill();
+  //     await CashierInfoHandler.saveSealStatus(BillSealStatus.sealed);
+
+  //     _shineController.forward(from: 0.0);
+  //     _starController.forward(from: 0.0);
+
+  //     Future.delayed(const Duration(milliseconds: 800), () {
+  //       if (!_hasPopped) {
+  //         _hasPopped = true;
+  //         widget.onPop?.call(); // ✅ handler call
+  //         debugPrint("🚪 Verified (first press) → Handler called.");
+  //       }
+  //     });
+  //   } else {
+  //     debugPrint('✅ Verified button SECOND press → Already sealed.');
+  //     Future.delayed(const Duration(milliseconds: 500), () {
+  //       if (!_hasPopped) {
+  //         _hasPopped = true;
+  //         widget.onPop?.call(); // ✅ handler call
+  //         debugPrint("🚪 Verified (second press) → Handler called.");
+  //       }
+  //     });
+  //   }
+  // }
+
   void _handleAccept() async {
+    if (!mounted) return;
+
     final state = ref.read(billVerificationProvider);
     final notifier = ref.read(billVerificationProvider.notifier);
 
@@ -96,13 +139,17 @@ class _VerificationButtonsState extends ConsumerState<VerificationButtons>
     if (state.sealStatus != BillSealStatus.sealed) {
       debugPrint('✅ Verified button FIRST press → Apply verified stamp.');
       await notifier.sealBill();
+
+      if (!mounted) return;
       await CashierInfoHandler.saveSealStatus(BillSealStatus.sealed);
 
-      _shineController.forward(from: 0.0);
-      _starController.forward(from: 0.0);
+      if (mounted) {
+        _shineController.forward(from: 0.0);
+        _starController.forward(from: 0.0);
+      }
 
       Future.delayed(const Duration(milliseconds: 800), () {
-        if (!_hasPopped) {
+        if (mounted && !_hasPopped) {
           _hasPopped = true;
           widget.onPop?.call(); // ✅ handler call
           debugPrint("🚪 Verified (first press) → Handler called.");
@@ -111,7 +158,7 @@ class _VerificationButtonsState extends ConsumerState<VerificationButtons>
     } else {
       debugPrint('✅ Verified button SECOND press → Already sealed.');
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (!_hasPopped) {
+        if (mounted && !_hasPopped) {
           _hasPopped = true;
           widget.onPop?.call(); // ✅ handler call
           debugPrint("🚪 Verified (second press) → Handler called.");

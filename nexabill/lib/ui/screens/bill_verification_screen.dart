@@ -53,7 +53,9 @@ class _BillVerificationScreenState
         final otpDoc = otpQuery.docs.first;
         final otpData = otpDoc.data();
         final billNo = otpDoc.id;
-        final userId = otpData['uid'] ?? otpData['customerId'];
+        // final userId = otpData['uid'] ?? otpData['customerId'];
+        final userId =
+            otpData['userId'] ?? otpData['uid'] ?? otpData['customerId'];
 
         debugPrint("✅ OTP matches with billNo: $billNo, userId: $userId");
 

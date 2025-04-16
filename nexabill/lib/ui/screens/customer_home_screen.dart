@@ -123,7 +123,7 @@ class CustomerHomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      drawer: const CustomDrawer(),
+      drawer: const CustomDrawer(isCustomer: true),
       body: Stack(
         children: [
           Column(

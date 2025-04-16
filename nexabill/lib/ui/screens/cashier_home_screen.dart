@@ -96,7 +96,7 @@ class _CashierHomeScreenState extends ConsumerState<CashierHomeScreen> {
         ],
       ),
 
-      drawer: const CustomDrawer(),
+      drawer: const CustomDrawer(isCustomer: false),
 
       body: _screens[_selectedIndex],
 
