@@ -3,19 +3,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:nexabill/data/bill_data.dart';
 
-Future<void> saveBillToFirestore() async {
+Future<void> saveBillToFirestore({required String adminUid}) async {
   final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    throw Exception("User not logged in");
-  }
+  if (user == null) throw Exception("User not logged in");
 
   final String customerUid = user.uid;
   final String billNo = BillData.billNo;
 
-  // Generate a random 6-digit OTP
   final String otp = (100000 + Random().nextInt(900000)).toString();
 
-  // 🔹 Save bill in customer's profile
   final billData = {
     "products": BillData.products,
     "amountPaid": BillData.amountPaid,
@@ -32,9 +28,10 @@ Future<void> saveBillToFirestore() async {
     "martContact": BillData.martContact,
     "martGSTIN": BillData.martGSTIN,
     "martCIN": BillData.martCIN,
-    "uid": customerUid, // 🔐 Also storing UID for traceability
+    "uid": customerUid,
   };
 
+  // ✅ Save to customer's my_bills
   await FirebaseFirestore.instance
       .collection("users")
       .doc(customerUid)
@@ -42,10 +39,18 @@ Future<void> saveBillToFirestore() async {
       .doc(billNo)
       .set(billData);
 
-  // 🔹 Save OTP mapping in global "otps" collection
+  // ✅ Also save to admin’s my_bills
+  await FirebaseFirestore.instance
+      .collection("users")
+      .doc(adminUid)
+      .collection("my_bills")
+      .doc(billNo)
+      .set(billData);
+
+  // ✅ Save OTP
   final otpData = {
     "otp": otp,
-    "uid": customerUid, // ✅ Must match what BillVerificationScreen expects
+    "uid": customerUid,
     "amountPaid": BillData.amountPaid,
     "timestamp": FieldValue.serverTimestamp(),
     "expiresAt":
@@ -55,7 +60,8 @@ Future<void> saveBillToFirestore() async {
   await FirebaseFirestore.instance.collection("otps").doc(billNo).set(otpData);
 
   print("✅ Bill and OTP saved successfully:");
-  print("   - Bill No: \$billNo");
-  print("   - OTP: \$otp");
-  print("   - UID: \$customerUid");
+  print("   - Bill No: $billNo");
+  print("   - OTP: $otp");
+  print("   - Customer UID: $customerUid");
+  print("   - Admin UID: $adminUid");
 }
