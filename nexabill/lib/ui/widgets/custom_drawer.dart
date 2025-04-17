@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nexabill/providers/auth_provider.dart';
 import 'package:nexabill/ui/screens/bill_details_screen.dart';
+import 'package:nexabill/ui/screens/cashier_dashboard_screen.dart';
 import 'package:nexabill/ui/screens/payments_screen.dart';
 import 'package:nexabill/ui/screens/signin_screen.dart';
 
@@ -46,7 +47,12 @@ class CustomDrawer extends ConsumerWidget {
               leading: const Icon(Icons.dashboard),
               title: const Text("Dashboard"),
               onTap: () {
-                // TODO: Navigate to dashboard
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CashierDashboardScreen(),
+                  ),
+                );
               },
             ),
 

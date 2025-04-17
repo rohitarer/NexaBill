@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +34,17 @@ class BillData {
   // 🔹 Amounts
   static double amountPaid = 0.0;
 
+  // 🔹 OTP + Seal Status
+  static String otp = "";
+  static String sealStatus = "";
+
+  // 🔹 Reset Flag
+  static bool hasResetAfterSeal = false;
+
+  // 🔹 Footer
+  static const String footerMessage = "THANK YOU, VISIT AGAIN!";
+
+  // 🔹 Utility Methods
   static double getTotalAmount() {
     return products.fold(0.0, (sum, item) {
       final price = item["finalPrice"] ?? item["price"] ?? 0.0;
@@ -53,16 +65,6 @@ class BillData {
     final balance = getTotalAmount() - amountPaid;
     return balance < 0 ? 0 : balance;
   }
-
-  // 🔹 OTP + Seal Status
-  static String otp = "";
-  static String sealStatus = "";
-
-  // 🔹 Reset Flag
-  static bool hasResetAfterSeal = false;
-
-  // 🔹 Footer
-  static const String footerMessage = "THANK YOU, VISIT AGAIN!";
 
   static void printSummary() {
     debugPrint("📋 BILL SUMMARY:");
@@ -146,13 +148,14 @@ class BillData {
     }
   }
 }
+
 // import 'package:flutter/material.dart';
 // import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:nexabill/providers/bill_cashier_provider.dart';
 
 // class BillData {
-//   // 🔹 Mart Information (loaded from admin's profile)
+//   // 🔹 Mart Information
 //   static String martName = "";
 //   static String martAddress = "";
 //   static String martState = "";
@@ -172,36 +175,44 @@ class BillData {
 //   static String customerMobile = "";
 //   static String cashier = "";
 //   static String customerId = "";
+//   static String adminUid = "";
 
 //   // 🔹 Product List
 //   static List<Map<String, dynamic>> products = [];
 //   static List<Map<String, dynamic>> get billItems => products;
 
-//   // 🔹 Amount Calculations
+//   // 🔹 Amounts
 //   static double amountPaid = 0.0;
 
-//   static double getTotalAmount() => products.fold(0.0, (sum, item) {
-//     final price = item["finalPrice"] ?? item["price"] ?? 0.0;
-//     final quantity = item["quantity"] ?? 1;
-//     return sum + (price as double) * (quantity as int);
-//   });
+//   // 🔹 Role
+//   static String userRole = "";
 
-//   static int getTotalQuantity() =>
-//       products.fold(0, (sum, item) => sum + (item["quantity"] as int));
-//   static double getTotalGST() => getTotalAmount() * 0.05;
-//   static double getNetAmountDue() => getTotalAmount() - getTotalGST();
-//   static double getBalanceAmount() {
-//     final balance = amountPaid - getTotalAmount();
-//     return balance < 0 ? balance.abs() : balance;
+//   static double getTotalAmount() {
+//     return products.fold(0.0, (sum, item) {
+//       final price = item["finalPrice"] ?? item["price"] ?? 0.0;
+//       final quantity = item["quantity"] ?? 1;
+//       return sum + (price as double) * (quantity as int);
+//     });
 //   }
 
-//   // 🔹 OTP
+//   static int getTotalQuantity() {
+//     return products.fold(0, (sum, item) => sum + (item["quantity"] as int));
+//   }
+
+//   static double getTotalGST() => getTotalAmount() * 0.05;
+
+//   static double getNetAmountDue() => getTotalAmount() - getTotalGST();
+
+//   static double getBalanceAmount() {
+//     final balance = getTotalAmount() - amountPaid;
+//     return balance < 0 ? 0 : balance;
+//   }
+
+//   // 🔹 OTP + Seal Status
 //   static String otp = "";
+//   static String sealStatus = "";
 
-//   // 🔹 Seal Status (newly added)
-//   static String sealStatus = ""; // values: 'sealed', 'rejected', or ''
-
-//   // 🔹 Control flag for app reset
+//   // 🔹 Reset Flag
 //   static bool hasResetAfterSeal = false;
 
 //   // 🔹 Footer
@@ -225,24 +236,23 @@ class BillData {
 //     debugPrint("• Balance Due : ₹${getBalanceAmount().toStringAsFixed(2)}");
 //   }
 
-//   static void resetBillData() {
+//   static void resetBillData({bool preserveCustomerId = true}) {
+//     final preservedCustomerId = customerId;
 //     martName = "";
 //     martAddress = "";
 //     martState = "";
 //     martContact = "";
 //     martGSTIN = "";
 //     martCIN = "";
-
 //     billNo = "";
 //     counterNo = "";
 //     billDate = "";
 //     session = "";
-
 //     customerName = "";
 //     customerMobile = "";
 //     cashier = "";
-//     customerId = "";
-
+//     customerId = preserveCustomerId ? preservedCustomerId : "";
+//     adminUid = "";
 //     products = [];
 //     amountPaid = 0.0;
 //     otp = "";
@@ -270,20 +280,19 @@ class BillData {
 //       if (doc.exists) {
 //         final data = doc.data();
 //         if (data != null) {
-//           final cashier = data['cashier'] ?? "";
-//           final counter = data['counterNo'] ?? "";
-//           final seal = data['sealStatus'] ?? "";
-//           BillData.cashier = cashier;
-//           BillData.counterNo = counter;
-//           BillData.sealStatus = seal;
+//           cashier = data['cashier'] ?? "";
+//           counterNo = data['counterNo'] ?? "";
+//           sealStatus = data['sealStatus'] ?? "";
 
-//           ref.read(billCashierProvider.notifier).update(cashier, counter);
+//           ref.read(billCashierProvider.notifier).update(cashier, counterNo);
 
 //           debugPrint("✅ Cashier Info Updated via Handler:");
 //           debugPrint("  • Cashier: $cashier");
-//           debugPrint("  • Counter: $counter");
-//           debugPrint("  • Seal: $seal");
+//           debugPrint("  • Counter: $counterNo");
+//           debugPrint("  • Seal: $sealStatus");
 //         }
+//       } else {
+//         debugPrint("⚠️ Bill document does not exist for cashier update.");
 //       }
 //     } catch (e, st) {
 //       debugPrint("❌ Error fetching cashier info: $e");

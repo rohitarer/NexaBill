@@ -20,6 +20,7 @@ class BillCardView extends ConsumerStatefulWidget {
 }
 
 class _BillCardViewState extends ConsumerState<BillCardView> {
+  // final GlobalKey repaintKey = GlobalKey();
   @override
   void initState() {
     super.initState();
@@ -63,7 +64,12 @@ class _BillCardViewState extends ConsumerState<BillCardView> {
           );
         }
 
-        return _buildBillCardUI(context, isDarkMode, sealStatus);
+        return Center(
+          // child: RepaintBoundary(
+          // key: repaintKey,
+          child: _buildBillCardUI(context, isDarkMode, sealStatus),
+          // ),
+        );
       },
     );
   }
@@ -73,51 +79,49 @@ class _BillCardViewState extends ConsumerState<BillCardView> {
     bool isDarkMode,
     BillSealStatus sealStatus,
   ) {
-    return Center(
-      child: Card(
-        margin: const EdgeInsets.all(16),
-        elevation: 6,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isDarkMode ? Colors.grey[900] : Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 20),
-                    _buildHeader(isDarkMode),
-                    const Divider(thickness: 1.5),
-                    _buildCustomerDetails(),
-                    const Divider(thickness: 1.5),
-                    _buildProductList(isDarkMode),
-                    const Divider(thickness: 1.5),
-                    _buildBillSummary(isDarkMode),
-                    const Divider(thickness: 1.5),
-                    _buildPaymentDetails(isDarkMode),
-                    const Divider(thickness: 1.5),
-                    _buildFooterQuote(isDarkMode),
-                    const SizedBox(height: 40),
-                  ],
-                ),
+    return Card(
+      margin: const EdgeInsets.all(2),
+      elevation: 6,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDarkMode ? Colors.grey[900] : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  _buildHeader(isDarkMode),
+                  const Divider(thickness: 1.5),
+                  _buildCustomerDetails(),
+                  const Divider(thickness: 1.5),
+                  _buildProductList(isDarkMode),
+                  const Divider(thickness: 1.5),
+                  _buildBillSummary(isDarkMode),
+                  const Divider(thickness: 1.5),
+                  _buildPaymentDetails(isDarkMode),
+                  const Divider(thickness: 1.5),
+                  _buildFooterQuote(isDarkMode),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
-            if (sealStatus == BillSealStatus.sealed ||
-                sealStatus == BillSealStatus.rejected)
-              VerificationStamp(
-                type:
-                    sealStatus == BillSealStatus.sealed
-                        ? StampType.verified
-                        : StampType.rejected,
-                martName: BillData.martName,
-              ),
-          ],
-        ),
+          ),
+          if (sealStatus == BillSealStatus.sealed ||
+              sealStatus == BillSealStatus.rejected)
+            VerificationStamp(
+              type:
+                  sealStatus == BillSealStatus.sealed
+                      ? StampType.verified
+                      : StampType.rejected,
+              martName: BillData.martName,
+            ),
+        ],
       ),
     );
   }

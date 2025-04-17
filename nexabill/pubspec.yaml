@@ -54,6 +54,10 @@ dependencies:
   saver_gallery: ^4.0.1
   qr_code_scanner_plus: ^2.0.10+1
   razorpay_flutter: ^1.4.0
+  pdf: ^3.11.3
+  printing: ^5.14.2
+  share_plus: ^10.1.4
+  fl_chart: ^0.71.0
   # paytm_allinonesdk: ^1.2.8
   # phonepe_payment_sdk: ^3.0.0
   crypto: ^3.0.6
@@ -82,9 +86,9 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
+  assets:
   #   - assets/google_pay_config.json
-  #   - images/a_dot_ham.jpeg
+    - assets/icons/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
