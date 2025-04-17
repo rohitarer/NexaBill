@@ -13,7 +13,21 @@ Future<void> saveBillToFirestore({required String adminUid}) async {
   final String otp = (100000 + Random().nextInt(900000)).toString();
 
   final billData = {
-    "products": BillData.products,
+    "products":
+        BillData.products
+            .map(
+              (product) => {
+                "name": product["name"],
+                "price": product["price"],
+                "quantity": product["quantity"],
+                "gst": product["gst"],
+                "discount": product["discount"],
+                "productId": product["productId"],
+                "variant": product["variant"],
+                "finalPrice": product["finalPrice"],
+              },
+            )
+            .toList(),
     "amountPaid": BillData.amountPaid,
     "timestamp": FieldValue.serverTimestamp(),
     "otp": otp,
@@ -25,6 +39,7 @@ Future<void> saveBillToFirestore({required String adminUid}) async {
     "billDate": BillData.billDate,
     "session": BillData.session,
     "counterNo": BillData.counterNo,
+    "cashier": BillData.cashier,
     "martContact": BillData.martContact,
     "martGSTIN": BillData.martGSTIN,
     "martCIN": BillData.martCIN,

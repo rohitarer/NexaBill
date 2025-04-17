@@ -47,4 +47,14 @@ class BillData {
   static double getBalanceAmount() {
     return getNetAmountDue() - amountPaid;
   }
+
+  // Optional: Utility to get all Product IDs
+  static List<String> getProductIds() {
+    return products.map((item) => item["productId"]?.toString() ?? "").toList();
+  }
+
+  // Optional: Utility to get all Variants
+  static List<String> getProductVariants() {
+    return products.map((item) => item["variant"]?.toString() ?? "").toList();
+  }
 }

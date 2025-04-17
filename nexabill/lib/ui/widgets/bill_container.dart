@@ -257,7 +257,7 @@ class _BillContainerState extends ConsumerState<BillContainer> {
                     .map((e) => Map<String, dynamic>.from(e.value))
                     .toList();
 
-            print("🛍️ Loaded \${BillData.products.length} products:");
+            print("🛍️ Loaded ${BillData.products.length} products:");
             for (var p in BillData.products) {
               print("  • ${p["name"]} x${p["quantity"]} @ ₹${p["finalPrice"]}");
             }

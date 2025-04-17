@@ -25,6 +25,8 @@ class ProductModel {
   final String gst;
   final String discount;
   final String qrCode;
+  final String productId;
+  final String variant;
 
   ProductModel({
     required this.name,
@@ -33,6 +35,8 @@ class ProductModel {
     required this.gst,
     required this.discount,
     required this.qrCode,
+    required this.productId,
+    required this.variant,
   });
 
   Map<String, dynamic> toMap() {
@@ -43,6 +47,8 @@ class ProductModel {
       'gst': gst,
       'discount': discount,
       'qrCode': qrCode,
+      'productId': productId,
+      'variant': variant,
     };
   }
 
@@ -54,6 +60,8 @@ class ProductModel {
       gst: map['gst'] ?? '',
       discount: map['discount'] ?? '',
       qrCode: map['qrCode'] ?? '',
+      productId: map['productId'] ?? '',
+      variant: map['variant'] ?? '',
     );
   }
 }
@@ -67,6 +75,7 @@ class AdminProductsProvider extends ChangeNotifier {
   final TextEditingController quantityController = TextEditingController();
   final TextEditingController gstController = TextEditingController();
   final TextEditingController discountController = TextEditingController();
+  final TextEditingController variantController = TextEditingController();
 
   String? _generatedQRData;
   String? get generatedQRData => _generatedQRData;
@@ -89,13 +98,7 @@ class AdminProductsProvider extends ChangeNotifier {
       if (doc.exists && doc.data()!.containsKey('martName')) {
         _martName = doc['martName'] ?? "";
         debugPrint("✅ Mart Name Fetched: $_martName");
-        updateQRData(
-          name: nameController.text.trim(),
-          price: priceController.text.trim(),
-          quantity: quantityController.text.trim(),
-          gst: gstController.text.trim(),
-          discount: discountController.text.trim(),
-        );
+        updateQRData();
         notifyListeners();
       }
     } catch (e) {
@@ -122,6 +125,7 @@ class AdminProductsProvider extends ChangeNotifier {
             _products.add(ProductModel.fromMap(item));
           }
         });
+        _sortProducts();
         notifyListeners();
         debugPrint("✅ Products Fetched: ${_products.length}");
       }
@@ -130,33 +134,67 @@ class AdminProductsProvider extends ChangeNotifier {
     }
   }
 
-  void onInputChange(WidgetRef ref) {
-    updateQRData(
-      name: nameController.text.trim(),
-      price: priceController.text.trim(),
-      quantity: quantityController.text.trim(),
-      gst: gstController.text.trim(),
-      discount: discountController.text.trim(),
+  void _sortProducts() {
+    _products.sort(
+      (a, b) => int.parse(a.productId).compareTo(int.parse(b.productId)),
     );
+    for (int i = 0; i < _products.length; i++) {
+      _products[i] = ProductModel(
+        name: _products[i].name,
+        price: _products[i].price,
+        quantity: _products[i].quantity,
+        gst: _products[i].gst,
+        discount: _products[i].discount,
+        qrCode: _products[i].qrCode,
+        variant: _products[i].variant,
+        productId: (i + 1).toString(),
+      );
+    }
+    _updateFirestoreSortedList();
   }
 
-  void updateQRData({
-    required String name,
-    required String price,
-    required String quantity,
-    required String gst,
-    required String discount,
-  }) {
+  Future<void> _updateFirestoreSortedList() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final docRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid);
+      final sortedMap = {
+        for (var product in _products) product.name: product.toMap(),
+      };
+      await docRef.update({'productList': sortedMap});
+    } catch (e) {
+      debugPrint("❌ Error updating sorted product list in Firestore: $e");
+    }
+  }
+
+  void onInputChange(WidgetRef ref) {
+    updateQRData();
+  }
+
+  void updateQRData() {
+    final name = nameController.text.trim();
+    final price = priceController.text.trim();
+    final quantity = quantityController.text.trim();
+    final gst = gstController.text.trim();
+    final discount = discountController.text.trim();
+    final variant = variantController.text.trim();
+    final productId = (_products.length + 1).toString();
+
     allFieldsFilled =
         name.isNotEmpty &&
         price.isNotEmpty &&
         quantity.isNotEmpty &&
         gst.isNotEmpty &&
-        discount.isNotEmpty;
+        discount.isNotEmpty &&
+        variant.isNotEmpty;
 
     if (allFieldsFilled) {
       _generatedQRData = '''
 Product: $name
+PID: $productId
+Variant: $variant
 Price: ₹$price
 Qty: $quantity
 GST: $gst%
@@ -177,26 +215,20 @@ $_martName Price: ₹${calculateDiscountedPrice()}
   }
 
   Future<void> saveProduct(WidgetRef ref, BuildContext context) async {
-    final name = nameController.text.trim();
-    final price = priceController.text.trim();
-    final quantity = quantityController.text.trim();
-    final gst = gstController.text.trim();
-    final discount = discountController.text.trim();
-    final qrCode = _generatedQRData;
-
-    if (qrCode == null) return;
+    final newProductId = (_products.length + 1).toString();
 
     final product = ProductModel(
-      name: name,
-      price: price,
-      quantity: quantity,
-      gst: gst,
-      discount: discount,
-      qrCode: qrCode,
+      name: nameController.text.trim(),
+      price: priceController.text.trim(),
+      quantity: quantityController.text.trim(),
+      gst: gstController.text.trim(),
+      discount: discountController.text.trim(),
+      qrCode: _generatedQRData ?? '',
+      productId: newProductId,
+      variant: variantController.text.trim(),
     );
 
     await addProductToFirestore(product);
-
     clearFields();
     if (context.mounted) Navigator.pop(context);
   }
@@ -209,15 +241,56 @@ $_martName Price: ₹${calculateDiscountedPrice()}
       final docRef = FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid);
+      final data = product.toMap();
       await docRef.set({
-        'productList': {product.name: product.toMap()},
+        'productList': {product.name: data},
       }, SetOptions(merge: true));
 
       _products.add(product);
+      _sortProducts();
       notifyListeners();
     } catch (e) {
       debugPrint("❌ Failed to add product to Firestore: $e");
     }
+  }
+
+  Future<void> deleteProductFromFirestore(String productName) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final docRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid);
+      await docRef.update({'productList.$productName': FieldValue.delete()});
+    } catch (e) {
+      debugPrint("❌ Error deleting product from Firestore: $e");
+    }
+  }
+
+  void deleteProduct(String name) {
+    final removedProduct = _products.firstWhere((p) => p.name == name);
+    _products.remove(removedProduct);
+    deleteProductFromFirestore(name);
+    _sortProducts();
+    notifyListeners();
+  }
+
+  void addProductBack(ProductModel product) {
+    _products.add(product);
+    _sortProducts();
+    notifyListeners();
+  }
+
+  void clearFields() {
+    nameController.clear();
+    priceController.clear();
+    quantityController.clear();
+    gstController.clear();
+    discountController.clear();
+    variantController.clear();
+    _generatedQRData = null;
+    allFieldsFilled = false;
+    notifyListeners();
   }
 
   Future<void> downloadQrCard(GlobalKey globalKey, BuildContext context) async {
@@ -261,11 +334,11 @@ $_martName Price: ₹${calculateDiscountedPrice()}
 
       if (context.mounted) {
         final messenger = ScaffoldMessenger.of(context);
-        messenger.removeCurrentSnackBar(); // 🔄 Dismiss old one
+        messenger.removeCurrentSnackBar();
         messenger.showSnackBar(
           const SnackBar(
             content: Text("✅ QR saved to Gallery"),
-            duration: Duration(seconds: 2), // Optional: shorter duration
+            duration: Duration(seconds: 2),
           ),
         );
       }
@@ -283,255 +356,4 @@ $_martName Price: ₹${calculateDiscountedPrice()}
     }
     return false;
   }
-
-  void deleteProduct(String name) {
-    _products.removeWhere((p) => p.name == name);
-    notifyListeners();
-  }
-
-  void clearFields() {
-    nameController.clear();
-    priceController.clear();
-    quantityController.clear();
-    gstController.clear();
-    discountController.clear();
-    _generatedQRData = null;
-    allFieldsFilled = false;
-    notifyListeners();
-  }
 }
-
-
-
-// import 'package:cloud_firestore/cloud_firestore.dart';
-// import 'package:flutter/material.dart';
-// import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
-
-// final adminProductsProvider =
-//     ChangeNotifierProvider.autoDispose<AdminProductsProvider>((ref) {
-//       final provider = AdminProductsProvider();
-//       provider.clearFields();
-//       provider.fetchProductsFromFirestore();
-//       return provider;
-//     });
-
-// class ProductModel {
-//   final String name;
-//   final String price;
-//   final String quantity;
-//   final String gst;
-//   final String discount;
-//   final String qrCode;
-
-//   ProductModel({
-//     required this.name,
-//     required this.price,
-//     required this.quantity,
-//     required this.gst,
-//     required this.discount,
-//     required this.qrCode,
-//   });
-
-//   Map<String, dynamic> toMap() {
-//     return {
-//       'name': name,
-//       'price': price,
-//       'quantity': quantity,
-//       'gst': gst,
-//       'discount': discount,
-//       'qrCode': qrCode,
-//     };
-//   }
-
-//   factory ProductModel.fromMap(Map<String, dynamic> map) {
-//     return ProductModel(
-//       name: map['name'] ?? '',
-//       price: map['price'] ?? '',
-//       quantity: map['quantity'] ?? '',
-//       gst: map['gst'] ?? '',
-//       discount: map['discount'] ?? '',
-//       qrCode: map['qrCode'] ?? '',
-//     );
-//   }
-// }
-
-// class AdminProductsProvider extends ChangeNotifier {
-//   final List<ProductModel> _products = [];
-//   List<ProductModel> get products => List.unmodifiable(_products);
-
-//   final TextEditingController nameController = TextEditingController();
-//   final TextEditingController priceController = TextEditingController();
-//   final TextEditingController quantityController = TextEditingController();
-//   final TextEditingController gstController = TextEditingController();
-//   final TextEditingController discountController = TextEditingController();
-
-//   String? _generatedQRData;
-//   String? get generatedQRData => _generatedQRData;
-
-//   bool allFieldsFilled = false;
-
-//   String _martName = "";
-//   String get martName => _martName;
-
-//   Future<void> fetchMartName() async {
-//     final user = FirebaseAuth.instance.currentUser;
-//     if (user == null) return;
-
-//     try {
-//       final doc =
-//           await FirebaseFirestore.instance
-//               .collection('users')
-//               .doc(user.uid)
-//               .get();
-//       if (doc.exists && doc.data()!.containsKey('martName')) {
-//         _martName = doc['martName'] ?? "";
-//         debugPrint("✅ Mart Name Fetched: $_martName");
-//         updateQRData(
-//           name: nameController.text.trim(),
-//           price: priceController.text.trim(),
-//           quantity: quantityController.text.trim(),
-//           gst: gstController.text.trim(),
-//           discount: discountController.text.trim(),
-//         );
-//         notifyListeners();
-//       }
-//     } catch (e) {
-//       debugPrint("❌ Failed to fetch mart name: $e");
-//     }
-//   }
-
-//   Future<void> fetchProductsFromFirestore() async {
-//     final user = FirebaseAuth.instance.currentUser;
-//     if (user == null) return;
-
-//     try {
-//       final doc =
-//           await FirebaseFirestore.instance
-//               .collection('users')
-//               .doc(user.uid)
-//               .get();
-
-//       if (doc.exists && doc.data()!.containsKey('productList')) {
-//         final productMap = doc['productList'] as Map<String, dynamic>;
-//         _products.clear();
-//         productMap.forEach((_, item) {
-//           if (item is Map<String, dynamic>) {
-//             _products.add(ProductModel.fromMap(item));
-//           }
-//         });
-//         notifyListeners();
-//         debugPrint("✅ Products Fetched: ${_products.length}");
-//       }
-//     } catch (e) {
-//       debugPrint("❌ Failed to fetch products from Firestore: $e");
-//     }
-//   }
-
-//   void onInputChange(WidgetRef ref) {
-//     updateQRData(
-//       name: nameController.text.trim(),
-//       price: priceController.text.trim(),
-//       quantity: quantityController.text.trim(),
-//       gst: gstController.text.trim(),
-//       discount: discountController.text.trim(),
-//     );
-//   }
-
-//   void updateQRData({
-//     required String name,
-//     required String price,
-//     required String quantity,
-//     required String gst,
-//     required String discount,
-//   }) {
-//     allFieldsFilled =
-//         name.isNotEmpty &&
-//         price.isNotEmpty &&
-//         quantity.isNotEmpty &&
-//         gst.isNotEmpty &&
-//         discount.isNotEmpty;
-
-//     if (allFieldsFilled) {
-//       _generatedQRData = '''
-// Product: $name
-// Price: ₹$price
-// Qty: $quantity
-// GST: $gst%
-// Discount: $discount%
-// $_martName Price: ₹${calculateDiscountedPrice()}
-// ''';
-//     } else {
-//       _generatedQRData = null;
-//     }
-//     notifyListeners();
-//   }
-
-//   String calculateDiscountedPrice() {
-//     final price = double.tryParse(priceController.text.trim()) ?? 0;
-//     final discount = double.tryParse(discountController.text.trim()) ?? 0;
-//     final discounted = price - (price * discount / 100);
-//     return discounted.toStringAsFixed(2);
-//   }
-
-//   Future<void> saveProduct(WidgetRef ref, BuildContext context) async {
-//     final name = nameController.text.trim();
-//     final price = priceController.text.trim();
-//     final quantity = quantityController.text.trim();
-//     final gst = gstController.text.trim();
-//     final discount = discountController.text.trim();
-//     final qrCode = _generatedQRData;
-
-//     if (qrCode == null) return;
-
-//     final product = ProductModel(
-//       name: name,
-//       price: price,
-//       quantity: quantity,
-//       gst: gst,
-//       discount: discount,
-//       qrCode: qrCode,
-//     );
-
-//     await addProductToFirestore(product);
-
-//     clearFields();
-//     if (context.mounted) Navigator.pop(context);
-//   }
-
-//   Future<void> addProductToFirestore(ProductModel product) async {
-//     final user = FirebaseAuth.instance.currentUser;
-//     if (user == null) return;
-
-//     try {
-//       final docRef = FirebaseFirestore.instance
-//           .collection('users')
-//           .doc(user.uid);
-//       await docRef.set({
-//         'productList': {product.name: product.toMap()},
-//       }, SetOptions(merge: true));
-
-//       _products.add(product);
-//       notifyListeners();
-//     } catch (e) {
-//       debugPrint("❌ Failed to add product to Firestore: $e");
-//     }
-//   }
-
-//   void deleteProduct(String name) {
-//     _products.removeWhere((p) => p.name == name);
-//     notifyListeners();
-//   }
-
-//   void clearFields() {
-//     nameController.clear();
-//     priceController.clear();
-//     quantityController.clear();
-//     gstController.clear();
-//     discountController.clear();
-//     _generatedQRData = null;
-//     allFieldsFilled = false;
-//     notifyListeners();
-//   }
-// }
-
