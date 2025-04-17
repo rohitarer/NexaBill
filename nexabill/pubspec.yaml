@@ -58,6 +58,7 @@ dependencies:
   printing: ^5.14.2
   share_plus: ^10.1.4
   fl_chart: ^0.71.0
+  firebase_app_check: ^0.3.2+5
   # paytm_allinonesdk: ^1.2.8
   # phonepe_payment_sdk: ^3.0.0
   crypto: ^3.0.6

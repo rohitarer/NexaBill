@@ -4,6 +4,7 @@ import 'package:nexabill/core/theme.dart';
 import 'package:nexabill/ui/screens/admin_dashboard_screen.dart';
 import 'package:nexabill/ui/screens/admin_products_screen.dart';
 import 'package:nexabill/ui/screens/admin_profile_tabs_screen.dart';
+import 'package:nexabill/ui/screens/payments_screen.dart';
 import 'package:nexabill/ui/widgets/add_product_sheet.dart';
 import 'package:nexabill/ui/widgets/custom_bottom_navbar.dart';
 import 'package:nexabill/ui/widgets/custom_drawer.dart';
@@ -19,7 +20,11 @@ class AdminHomeScreen extends ConsumerStatefulWidget {
 class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = [AdminDashboardScreen(), AdminProductsScreen()];
+  final List<Widget> _screens = [
+    AdminDashboardScreen(),
+    AdminProductsScreen(),
+    PaymentsScreen(),
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -38,9 +43,12 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _selectedIndex == 0 ? "NexaBill - Admin" : "Products List",
+          _selectedIndex == 0
+              ? "NexaBill - Admin"
+              : _selectedIndex == 1
+              ? "Products List"
+              : "Payments",
           style: const TextStyle(
-            // Prevents text interpolation issues
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: Colors.white,
@@ -104,7 +112,7 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                 ),
               ),
             )
-          else
+          else if (_selectedIndex == 1)
             Padding(
               padding: const EdgeInsets.only(right: 16),
               child: ElevatedButton.icon(
@@ -131,7 +139,6 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                   ),
                   elevation: 3,
                   textStyle: const TextStyle(
-                    // Ensures consistent style
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     inherit: false,
@@ -151,11 +158,8 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
             ),
         ],
       ),
-
-      drawer: const CustomDrawer(isCustomer: true),
-
+      drawer: const CustomDrawer(isCustomer: false, isAdmin: true),
       body: _screens[_selectedIndex],
-
       bottomNavigationBar:
           isKeyboardOpen
               ? null
@@ -170,6 +174,10 @@ class _AdminHomeScreenState extends ConsumerState<AdminHomeScreen> {
                   CustomBottomNavBarItem(
                     icon: Icons.inventory_2,
                     label: "Products",
+                  ),
+                  CustomBottomNavBarItem(
+                    icon: Icons.payments,
+                    label: "Payments",
                   ),
                 ],
               ),
