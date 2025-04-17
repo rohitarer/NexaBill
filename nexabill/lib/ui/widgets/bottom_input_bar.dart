@@ -12,6 +12,7 @@ import 'package:nexabill/providers/otp_provider.dart';
 import 'package:nexabill/services/razorpay_service.dart';
 import 'package:nexabill/ui/screens/customer_home_screen.dart';
 import 'package:nexabill/ui/screens/qr_scanner_screen.dart';
+import 'package:nexabill/ui/screens/microphone_input_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
@@ -299,7 +300,13 @@ class _BottomInputBarState extends ConsumerState<BottomInputBar> {
                                 icon: const Icon(Icons.mic),
                                 color: theme.iconTheme.color,
                                 onPressed: () {
-                                  // TODO: Implement mic input
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (_) => const MicrophoneInputScreen(),
+                                    ),
+                                  );
                                 },
                               ),
                             ],
