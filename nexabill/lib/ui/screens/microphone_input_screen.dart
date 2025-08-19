@@ -3,9 +3,7 @@ import 'package:nexabill/ui/screens/customer_home_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nexabill/providers/customer_home_provider.dart';
 import 'package:nexabill/core/theme.dart';
 
 class MicrophoneInputScreen extends ConsumerStatefulWidget {
@@ -24,7 +22,7 @@ class _MicrophoneInputScreenState extends ConsumerState<MicrophoneInputScreen> {
 
   final _gemini = GenerativeModel(
     model: 'gemini-1.5-pro',
-    apiKey: 'AIzaSyD4Zs7RkPSNgbJnOSqzhtV9uI2q_LPkaSE',
+    apiKey: 'AIzaSyDLZr2ti7X_1rzGUlwthfRfa8YfBTAzjHo',
   );
 
   @override

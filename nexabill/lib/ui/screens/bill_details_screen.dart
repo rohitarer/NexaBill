@@ -8,9 +8,9 @@ import 'package:nexabill/providers/bill_details_provider.dart';
 import 'package:nexabill/ui/widgets/bill_card_view.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:printing/printing.dart';
 import 'dart:io';
 
 class BillDetailsScreen extends ConsumerStatefulWidget {

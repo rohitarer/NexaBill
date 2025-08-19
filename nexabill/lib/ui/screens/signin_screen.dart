@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nexabill/core/theme.dart';
 import 'package:nexabill/providers/auth_provider.dart';
 import 'package:nexabill/services/role_routes.dart';
+import 'package:nexabill/ui/screens/forgot_password_screen.dart';
 import 'package:nexabill/ui/screens/profile_screen.dart';
 import 'package:nexabill/ui/screens/signup_screen.dart';
 import 'package:nexabill/ui/widgets/custom_dropdown.dart';
@@ -266,7 +267,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      // TODO: Implement Forgot Password logic
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordScreen(),
+                        ),
+                      );
                     },
                     child: Text(
                       "Forgot Password?",

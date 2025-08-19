@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:nexabill/data/bill_data.dart';
-import 'package:nexabill/providers/bill_verification_provider.dart';
 
 final paymentsProvider =
     StateNotifierProvider<PaymentsNotifier, List<Map<String, dynamic>>>(

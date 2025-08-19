@@ -2,12 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nexabill/data/bill_data.dart';
 import 'package:nexabill/providers/bill_verification_provider.dart';
-import 'package:nexabill/providers/customer_home_provider.dart';
 import 'package:nexabill/providers/bill_details_provider.dart';
-import 'package:nexabill/ui/screens/customer_home_screen.dart';
 import 'package:nexabill/ui/widgets/verification_stamp.dart';
-import 'package:nexabill/ui/widgets/bill_otp_handler.dart';
-import 'package:nexabill/ui/widgets/cahier_info_handler.dart';
 import 'package:intl/intl.dart';
 
 class BillCardView extends ConsumerStatefulWidget {
@@ -337,7 +333,7 @@ class _BillCardViewState extends ConsumerState<BillCardView> {
       final price = item["finalPrice"] ?? item["price"] ?? 0.0;
       final quantity = item["quantity"] ?? 1;
       totalFinalAmount += (price as double) * (quantity as int);
-      totalQuantity += quantity as int;
+      totalQuantity += quantity;
     }
 
     final balance = totalFinalAmount - BillData.amountPaid;

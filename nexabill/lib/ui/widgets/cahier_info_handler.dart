@@ -1,10 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:nexabill/core/theme.dart';
-import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nexabill/providers/bill_cashier_provider.dart';
 import 'package:nexabill/providers/bill_verification_provider.dart';
-import 'package:nexabill/ui/widgets/cahier_info_handler.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:nexabill/data/bill_data.dart';
 import 'package:firebase_auth/firebase_auth.dart';

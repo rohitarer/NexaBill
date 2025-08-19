@@ -267,6 +267,16 @@ class _CashierDashboardScreenState extends State<CashierDashboardScreen> {
 
   Widget _buildGraphCard(Map<String, int> dataMap, String title) {
     final sortedKeys = dataMap.keys.toList()..sort((a, b) => a.compareTo(b));
+    // final maxY =
+    //     (dataMap.values.isEmpty
+    //             ? 10
+    //             : dataMap.values.reduce((a, b) => a > b ? a : b))
+    //         .toDouble();
+    final maxValue =
+        dataMap.values.isEmpty
+            ? 1
+            : dataMap.values.reduce((a, b) => a > b ? a : b);
+    final maxY = maxValue < 5 ? 5.0 : maxValue.toDouble() + 1;
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 300),
@@ -312,6 +322,7 @@ class _CashierDashboardScreenState extends State<CashierDashboardScreen> {
               Expanded(
                 child: BarChart(
                   BarChartData(
+                    maxY: maxY + 1,
                     borderData: FlBorderData(show: false),
                     gridData: FlGridData(show: false),
                     titlesData: FlTitlesData(

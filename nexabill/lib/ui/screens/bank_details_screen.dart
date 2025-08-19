@@ -24,20 +24,35 @@ class _BankDetailsScreenState extends ConsumerState<BankDetailsScreen> {
   late TextEditingController ifscController;
   late TextEditingController upiController;
 
-  @override
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   final profileState = ref.read(profileNotifierProvider);
+
+  //   accountHolderController = TextEditingController(
+  //     text: profileState.bankHolder,
+  //   );
+  //   accountNumberController = TextEditingController(
+  //     text: profileState.bankAccountNumber,
+  //   );
+  //   ifscController = TextEditingController(text: profileState.bankIFSC);
+  //   upiController = TextEditingController(text: profileState.bankUPI);
+  // }
+ @override
   void initState() {
     super.initState();
     final profileState = ref.read(profileNotifierProvider);
-
-    accountHolderController = TextEditingController(
-      text: profileState.bankHolder,
-    );
-    accountNumberController = TextEditingController(
-      text: profileState.bankAccountNumber,
-    );
+    accountHolderController = TextEditingController(text: profileState.bankHolder);
+    accountNumberController = TextEditingController(text: profileState.bankAccountNumber);
     ifscController = TextEditingController(text: profileState.bankIFSC);
     upiController = TextEditingController(text: profileState.bankUPI);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(profileNotifierProvider.notifier).loadProfile(ref);
+    });
   }
+
+
 
   @override
   void dispose() {
@@ -155,7 +170,7 @@ class _BankDetailsScreenState extends ConsumerState<BankDetailsScreen> {
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            "\u{1F3E6} ${profileState.bankName!}",
+                            profileState.bankName!,
                             style: TextStyle(
                               color:
                                   isDarkMode ? Colors.white70 : Colors.black87,

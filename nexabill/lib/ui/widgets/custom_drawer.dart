@@ -1,11 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nexabill/providers/auth_provider.dart';
-import 'package:nexabill/ui/screens/bill_details_screen.dart';
 import 'package:nexabill/ui/screens/cashier_dashboard_screen.dart';
 import 'package:nexabill/ui/screens/payments_screen.dart';
 import 'package:nexabill/ui/screens/signin_screen.dart';
+import 'package:nexabill/ui/screens/customer_report_screen.dart';
+import 'package:nexabill/ui/screens/admin_settings_screen.dart'; // ✅ Add this import
 
 class CustomDrawer extends ConsumerWidget {
   final bool isCustomer;
@@ -60,13 +60,33 @@ class CustomDrawer extends ConsumerWidget {
               ),
           ],
 
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text("Settings"),
-            onTap: () {
-              // TODO: Navigate to settings
-            },
-          ),
+          if (isAdmin) ...[
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text("Customer Reports"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const CustomerReportScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text("Settings"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AdminSettingsScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.redAccent),
             title: const Text(
@@ -116,19 +136,25 @@ class CustomDrawer extends ConsumerWidget {
   }
 }
 
-// import 'dart:io';
+
+
+
 // import 'package:flutter/material.dart';
 // import 'package:flutter_riverpod/flutter_riverpod.dart';
 // import 'package:nexabill/providers/auth_provider.dart';
-// import 'package:nexabill/ui/screens/bill_details_screen.dart';
 // import 'package:nexabill/ui/screens/cashier_dashboard_screen.dart';
 // import 'package:nexabill/ui/screens/payments_screen.dart';
 // import 'package:nexabill/ui/screens/signin_screen.dart';
 
 // class CustomDrawer extends ConsumerWidget {
 //   final bool isCustomer;
+//   final bool isAdmin;
 
-//   const CustomDrawer({super.key, required this.isCustomer});
+//   const CustomDrawer({
+//     super.key,
+//     required this.isCustomer,
+//     this.isAdmin = false,
+//   });
 
 //   @override
 //   Widget build(BuildContext context, WidgetRef ref) {
@@ -146,33 +172,32 @@ class CustomDrawer extends ConsumerWidget {
 //             ),
 //           ),
 
-//           // Conditional rendering based on role
-//           if (isCustomer)
-//             ListTile(
-//               leading: const Icon(Icons.payment),
-//               title: const Text("Payments"),
-//               onTap: () {
-//                 Navigator.push(
-//                   context,
-//                   MaterialPageRoute(
-//                     builder: (_) => const PaymentsScreen(), // ⬅️ Replaced here
-//                   ),
-//                 );
-//               },
-//             )
-//           else
-//             ListTile(
-//               leading: const Icon(Icons.dashboard),
-//               title: const Text("Dashboard"),
-//               onTap: () {
-//                 Navigator.push(
-//                   context,
-//                   MaterialPageRoute(
-//                     builder: (_) => const CashierDashboardScreen(),
-//                   ),
-//                 );
-//               },
-//             ),
+//           if (!isAdmin) ...[
+//             if (isCustomer)
+//               ListTile(
+//                 leading: const Icon(Icons.payment),
+//                 title: const Text("Payments"),
+//                 onTap: () {
+//                   Navigator.push(
+//                     context,
+//                     MaterialPageRoute(builder: (_) => const PaymentsScreen()),
+//                   );
+//                 },
+//               )
+//             else
+//               ListTile(
+//                 leading: const Icon(Icons.dashboard),
+//                 title: const Text("Dashboard"),
+//                 onTap: () {
+//                   Navigator.push(
+//                     context,
+//                     MaterialPageRoute(
+//                       builder: (_) => const CashierDashboardScreen(),
+//                     ),
+//                   );
+//                 },
+//               ),
+//           ],
 
 //           ListTile(
 //             leading: const Icon(Icons.settings),
@@ -229,3 +254,4 @@ class CustomDrawer extends ConsumerWidget {
 //         false;
 //   }
 // }
+

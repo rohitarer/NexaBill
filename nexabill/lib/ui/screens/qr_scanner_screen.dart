@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:nexabill/core/theme.dart';
-import 'package:nexabill/providers/customer_home_provider.dart';
 import 'customer_home_screen.dart';
 
 class QRScannerScreen extends ConsumerStatefulWidget {
@@ -182,7 +181,10 @@ class _QRScannerScreenState extends ConsumerState<QRScannerScreen> {
       final updatedList = [...ref.read(scannedProductsProvider), productItem];
       ref.read(scannedProductsProvider.notifier).state = updatedList;
 
-      Navigator.pop(context); // ✅ Close scanner
+      // Navigator.pop(context); // ✅ Close scanner
+      await Future.delayed(const Duration(milliseconds: 300));
+if (mounted) Navigator.pop(context);
+
     } catch (e) {
       print("❌ Error scanning product: $e");
     }

@@ -646,6 +646,149 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     return false;
   }
 
+  // Future<void> saveProfile(BuildContext context, WidgetRef ref) async {
+  //   User? user = FirebaseAuth.instance.currentUser;
+  //   if (user == null) {
+  //     state = ProfileState.error("User not logged in");
+  //     return;
+  //   }
+
+  //   try {
+  //     state = state.copyWith(isLoading: true);
+
+  //     final role = state.role.toLowerCase();
+  //     final isCashier = role == "cashier";
+  //     final isAdmin = role == "admin";
+
+  //     final Map<String, dynamic> updatedProfileData = {
+  //       // ✅ Basic profile
+  //       "fullName": state.fullName.trim(),
+  //       "phoneNumber": state.phoneNumber.trim(),
+  //       "gender": state.gender,
+  //       "dob": state.dob?.toIso8601String() ?? "",
+  //       "address": state.address.trim(),
+  //       "city": state.city.trim(),
+  //       "state": state.selectedState.trim(),
+  //       "pin": state.pin.trim(),
+  //       "profileImageUrl": state.profileImageUrl,
+  //       "role": state.role,
+  //       "mart": state.mart,
+  //       "counterNumber": state.counterNumber,
+  //     };
+
+  //     if (isAdmin) {
+  //       // ✅ Add mart details
+  //       updatedProfileData.addAll({
+  //         "martName": state.martName.trim(),
+  //         "martContact": state.martContact.trim(),
+  //         "martAddress": state.martAddress.trim(),
+  //         "martCity": state.martCity.trim(),
+  //         "martState": state.martState.trim(),
+  //         "martPinCode": state.martPinCode.trim(),
+  //         "martGstin": state.martGstin.trim(),
+  //         "martCin": state.martCin.trim(),
+  //         "martLogoUrl": state.martLogoUrl.trim(),
+  //         "martCoverImages": List<String>.from(state.martCoverImages),
+  //       });
+
+  //       // ✅ Add bank details
+  //       updatedProfileData.addAll({
+  //         "accountHolder": state.bankHolder.trim(),
+  //         "accountNumber": state.bankAccountNumber.trim(),
+  //         "ifscCode": state.bankIFSC.trim(),
+  //         "upiId": state.bankUPI.trim(),
+  //         "bankInfo": state.bankName ?? "",
+  //         "passbookBase64":
+  //             state.passbookImage != null
+  //                 ? base64Encode(await state.passbookImage!.readAsBytes())
+  //                 : "",
+  //         "panBase64":
+  //             state.panImage != null
+  //                 ? base64Encode(await state.panImage!.readAsBytes())
+  //                 : "",
+  //         "aadharBase64":
+  //             state.aadharImage != null
+  //                 ? base64Encode(await state.aadharImage!.readAsBytes())
+  //                 : "",
+  //       });
+  //     }
+
+  //     // ✅ Determine if profile is complete
+  //     final isComplete = () {
+  //       if (isAdmin) return true;
+  //       if (isCashier) {
+  //         return [
+  //           state.fullName,
+  //           state.phoneNumber,
+  //           state.gender,
+  //           state.dob?.toIso8601String(),
+  //           state.address,
+  //           state.city,
+  //           state.selectedState,
+  //           state.pin,
+  //           state.profileImageUrl,
+  //           state.role,
+  //           state.mart,
+  //           state.counterNumber,
+  //         ].every((val) => val != null && val.toString().trim().isNotEmpty);
+  //       }
+  //       if (role == "customer") {
+  //         return [
+  //           state.fullName,
+  //           state.phoneNumber,
+  //           state.gender,
+  //           state.dob?.toIso8601String(),
+  //           state.address,
+  //           state.city,
+  //           state.selectedState,
+  //           state.pin,
+  //           state.profileImageUrl,
+  //           state.role,
+  //           // ✅ Removed `mart` from here for customer
+  //         ].every((val) => val != null && val.toString().trim().isNotEmpty);
+  //       }
+
+  //       return false;
+  //     }();
+
+  //     updatedProfileData["isProfileComplete"] = isComplete;
+
+  //     // 🔄 Save to Firestore
+  //     await FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(user.uid)
+  //         .set(updatedProfileData, SetOptions(merge: true));
+
+  //     // 🔄 Save to Realtime DB (optional)
+  //     await FirebaseDatabase.instance
+  //         .ref()
+  //         .child("users")
+  //         .child(user.uid)
+  //         .update(updatedProfileData);
+
+  //     ref.invalidate(profileImageProvider);
+  //     await Future.delayed(const Duration(milliseconds: 300));
+
+  //     state = state.copyWith(isLoading: false, isProfileComplete: isComplete);
+
+  //     debugPrint("✅ Profile saved successfully:");
+  //     updatedProfileData.forEach((k, v) => debugPrint("  $k: $v"));
+
+  //     // ⏩ Navigate only if user is not admin
+  //     if (context.mounted && !isAdmin) {
+  //       Navigator.pushReplacement(
+  //         context,
+  //         MaterialPageRoute(
+  //           builder:
+  //               (context) => AppRoutes.getHomeScreen(state.role, isComplete),
+  //         ),
+  //       );
+  //     }
+  //   } catch (e) {
+  //     state = ProfileState.error("Error saving profile: ${e.toString()}");
+  //   }
+  // }
+
   Future<void> saveProfile(BuildContext context, WidgetRef ref) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -660,8 +803,19 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       final isCashier = role == "cashier";
       final isAdmin = role == "admin";
 
+      // ✅ Compress large document images before encoding
+      Future<String> compressAndEncode(File? image) async {
+        if (image == null) return "";
+        final compressedBytes = await FlutterImageCompress.compressWithFile(
+          image.path,
+          quality: 25,
+          format: CompressFormat.jpeg,
+        );
+        return base64Encode(compressedBytes ?? await image.readAsBytes());
+      }
+
+      // ✅ Prepare full profile data for update
       final Map<String, dynamic> updatedProfileData = {
-        // ✅ Basic profile
         "fullName": state.fullName.trim(),
         "phoneNumber": state.phoneNumber.trim(),
         "gender": state.gender,
@@ -671,13 +825,12 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         "state": state.selectedState.trim(),
         "pin": state.pin.trim(),
         "profileImageUrl": state.profileImageUrl,
-        "role": state.role,
+        "role": role,
         "mart": state.mart,
         "counterNumber": state.counterNumber,
       };
 
       if (isAdmin) {
-        // ✅ Add mart details
         updatedProfileData.addAll({
           "martName": state.martName.trim(),
           "martContact": state.martContact.trim(),
@@ -689,81 +842,60 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
           "martCin": state.martCin.trim(),
           "martLogoUrl": state.martLogoUrl.trim(),
           "martCoverImages": List<String>.from(state.martCoverImages),
-        });
 
-        // ✅ Add bank details
-        updatedProfileData.addAll({
+          // ✅ Bank details
           "accountHolder": state.bankHolder.trim(),
           "accountNumber": state.bankAccountNumber.trim(),
           "ifscCode": state.bankIFSC.trim(),
           "upiId": state.bankUPI.trim(),
           "bankInfo": state.bankName ?? "",
-          "passbookBase64":
-              state.passbookImage != null
-                  ? base64Encode(await state.passbookImage!.readAsBytes())
-                  : "",
-          "panBase64":
-              state.panImage != null
-                  ? base64Encode(await state.panImage!.readAsBytes())
-                  : "",
-          "aadharBase64":
-              state.aadharImage != null
-                  ? base64Encode(await state.aadharImage!.readAsBytes())
-                  : "",
+
+          // ✅ Encoded document images (compressed)
+          "passbookBase64": await compressAndEncode(state.passbookImage),
+          "panBase64": await compressAndEncode(state.panImage),
+          "aadharBase64": await compressAndEncode(state.aadharImage),
         });
       }
 
-      // ✅ Determine if profile is complete
+      // ✅ Calculate profile completeness
       final isComplete = () {
-        if (isAdmin) return true;
-        if (isCashier) {
-          return [
-            state.fullName,
-            state.phoneNumber,
-            state.gender,
-            state.dob?.toIso8601String(),
-            state.address,
-            state.city,
-            state.selectedState,
-            state.pin,
-            state.profileImageUrl,
-            state.role,
-            state.mart,
-            state.counterNumber,
-          ].every((val) => val != null && val.toString().trim().isNotEmpty);
-        }
-        if (role == "customer") {
-          return [
-            state.fullName,
-            state.phoneNumber,
-            state.gender,
-            state.dob?.toIso8601String(),
-            state.address,
-            state.city,
-            state.selectedState,
-            state.pin,
-            state.profileImageUrl,
-            state.role,
-            // ✅ Removed `mart` from here for customer
-          ].every((val) => val != null && val.toString().trim().isNotEmpty);
+        final basicFields = [
+          state.fullName,
+          state.phoneNumber,
+          state.gender,
+          state.dob?.toIso8601String(),
+          state.address,
+          state.city,
+          state.selectedState,
+          state.pin,
+          state.profileImageUrl,
+          state.role,
+        ];
+
+        if (basicFields.any((e) => e == null || e.toString().trim().isEmpty)) {
+          return false;
         }
 
-        return false;
+        if (isCashier) {
+          return state.mart.trim().isNotEmpty &&
+              state.counterNumber.trim().isNotEmpty;
+        }
+
+        if (isAdmin) return true;
+        return true;
       }();
 
       updatedProfileData["isProfileComplete"] = isComplete;
 
-      // 🔄 Save to Firestore
+      // 🔄 Save to Firestore with merge
       await FirebaseFirestore.instance
           .collection("users")
           .doc(user.uid)
           .set(updatedProfileData, SetOptions(merge: true));
 
-      // 🔄 Save to Realtime DB (optional)
+      // 🔄 Optional: Save to Realtime DB
       await FirebaseDatabase.instance
-          .ref()
-          .child("users")
-          .child(user.uid)
+          .ref("users/${user.uid}")
           .update(updatedProfileData);
 
       ref.invalidate(profileImageProvider);
@@ -774,7 +906,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       debugPrint("✅ Profile saved successfully:");
       updatedProfileData.forEach((k, v) => debugPrint("  $k: $v"));
 
-      // ⏩ Navigate only if user is not admin
+      // ⏩ Navigate only if not admin
       if (context.mounted && !isAdmin) {
         Navigator.pushReplacement(
           context,
@@ -785,7 +917,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
         );
       }
     } catch (e) {
-      state = ProfileState.error("Error saving profile: ${e.toString()}");
+      state = ProfileState.error("Error saving profile: \${e.toString()}");
     }
   }
 }

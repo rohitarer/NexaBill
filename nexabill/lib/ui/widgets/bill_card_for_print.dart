@@ -193,7 +193,7 @@ class BillCardForPrint extends ConsumerWidget {
       final price = item["finalPrice"] ?? item["price"] ?? 0.0;
       final quantity = item["quantity"] ?? 1;
       totalAmount += (price as double) * (quantity as int);
-      totalQty += quantity as int;
+      totalQty += quantity;
     }
 
     final balance = totalAmount - BillData.amountPaid;

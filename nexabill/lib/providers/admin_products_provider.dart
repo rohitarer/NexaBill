@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -351,8 +350,9 @@ $_martName Price: ₹${calculateDiscountedPrice()}
     if (Platform.isAndroid) {
       if (await Permission.storage.request().isGranted) return true;
       if (await Permission.photos.request().isGranted) return true;
-      if (await Permission.manageExternalStorage.request().isGranted)
+      if (await Permission.manageExternalStorage.request().isGranted) {
         return true;
+      }
     }
     return false;
   }

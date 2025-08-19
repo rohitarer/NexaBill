@@ -10,7 +10,36 @@
       "client_info": {
         "mobilesdk_app_id": "1:119339044673:android:ef61f2ccf62d874a0e1bc0",
         "android_client_info": {
-          "package_name": "com.example.nexabill"
+          "package_name": "com.rohitarer00.nexabill"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "119339044673-eofhga7vrnffopk37s7q9ns8p4ktt8t3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBEHyVp4mhZckW7Juu3mhfrdd4sbG15oE0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "119339044673-eofhga7vrnffopk37s7q9ns8p4ktt8t3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:119339044673:android:7cd300f4458d68080e1bc0",
+        "android_client_info": {
+          "package_name": "com.rohitarer00.nexabill"
         }
       },
       "oauth_client": [

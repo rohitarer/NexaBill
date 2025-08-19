@@ -70,7 +70,7 @@ class _OtpHandlerState extends State<OtpHandler> {
               ? const Text(
                 "Verificaton Code:",
                 key: ValueKey("waiting"),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Colors.blue,
