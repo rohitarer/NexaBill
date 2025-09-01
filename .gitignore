@@ -1,0 +1,50 @@
+# Flutter (anywhere)
+**/.dart_tool/
+**/build/
+**/.packages
+**/.flutter-plugins
+**/.flutter-plugins-dependencies*
+**/.metadata
+
+# IDE & system
+**/.idea/
+**/.vscode/
+**/.DS_Store
+
+# Android
+nexabill/android/.gradle/
+nexabill/android/local.properties
+nexabill/android/key.properties
+nexabill/android/**/google-services.json
+
+# iOS / macOS
+nexabill/ios/Pods/
+nexabill/ios/.symlinks/
+nexabill/ios/Flutter/Flutter.framework
+nexabill/ios/Flutter/Flutter.podspec
+nexabill/ios/Flutter/Generated*.xcconfig
+nexabill/ios/Flutter/ephemeral/
+nexabill/ios/Flutter/flutter_export_environment*.sh
+nexabill/macos/Pods/
+nexabill/macos/Flutter/ephemeral/
+
+# Desktop/Web extra output
+nexabill/linux/**/build/
+nexabill/windows/**/x64/
+nexabill/windows/**/x86/
+nexabill/web/**/build/
+nexabill/web/.dart_tool/
+
+# Secrets
+.env
+*.keystore
+*.jks
+*.pem
+*.p12
+nexabill/linux/
+
+nexabill/android/
+nexabill/ios/
+nexabill/linux/
+nexabill/macos/
+nexabill/windows/
